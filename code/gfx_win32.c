@@ -1,10 +1,30 @@
 // TODO(philip): Remove junk from the Windows header file.
 #include <Windows.h>
+#include <GL/gl.h>
 
 #include "gfx_base.h"
 
 // TODO(philip): Move these to a header file.
 // TODO(philip): Documentation.
+
+#define WGL_DRAW_TO_WINDOW_ARB            0x2001
+#define WGL_SUPPORT_OPENGL_ARB            0x2010
+#define WGL_DOUBLE_BUFFER_ARB             0x2011
+#define WGL_PIXEL_TYPE_ARB                0x2013
+#define WGL_COLOR_BITS_ARB                0x2014
+#define WGL_DEPTH_BITS_ARB                0x2022
+#define WGL_STENCIL_BITS_ARB              0x2023
+
+#define WGL_TYPE_RGBA_ARB                 0x202B
+
+#define WGL_CONTEXT_MAJOR_VERSION_ARB     0x2091
+#define WGL_CONTEXT_MINOR_VERSION_ARB     0x2092
+#define WGL_CONTEXT_FLAGS_ARB             0x2094
+#define WGL_CONTEXT_PROFILE_MASK_ARB      0x9126
+
+#define WGL_CONTEXT_DEBUG_BIT_ARB         0x00000001
+
+#define WGL_CONTEXT_CORE_PROFILE_BIT_ARB  0x00000001
 
 typedef BOOL wgl_choose_pixel_format_arb(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList,
                                          UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
@@ -147,29 +167,91 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
         if (Window)
         {
-            ShowWindow(Window, SW_SHOW);
+            HDC DeviceContext = GetDC(Window);
 
-            for (;;)
+            s32 PixelFormatAttributes[] =
             {
-                b32 IsExitRequested = false;
+                WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
+                WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
+                WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
+                WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
+                WGL_COLOR_BITS_ARB, 32,
+                WGL_DEPTH_BITS_ARB, 24,
+                WGL_STENCIL_BITS_ARB, 8,
+                0
+            };
 
-                MSG Message;
-                while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE))
+            s32 PixelFormatIndex;
+            UINT PixelFormatCount;
+            wglChoosePixelFormatARB(DeviceContext, PixelFormatAttributes, 0, 1, &PixelFormatIndex,
+                                    &PixelFormatCount);
+
+            if (PixelFormatCount == 1)
+            {
+                PIXELFORMATDESCRIPTOR PixelFormat;
+                DescribePixelFormat(DeviceContext, PixelFormatIndex, sizeof(PIXELFORMATDESCRIPTOR), &PixelFormat);
+
+                if (SetPixelFormat(DeviceContext, PixelFormatIndex, &PixelFormat))
                 {
-                    if (Message.message == WM_QUIT)
+                    // TODO(philip): What is the max version we are allowed to support?
+                    // TODO(philip): Only set the debug flag on debug builds.
+                    s32 OpenGLContextAttributes[] =
                     {
-                        IsExitRequested = true;
-                        break;
+                        WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+                        WGL_CONTEXT_MINOR_VERSION_ARB, 3,
+                        WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+                        WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB,
+                        0
+                    };
+
+                    HGLRC OpenGLContext = wglCreateContextAttribsARB(DeviceContext, 0, OpenGLContextAttributes);
+                    if (OpenGLContext)
+                    {
+                        wglMakeCurrent(DeviceContext, OpenGLContext);
+
+                        ShowWindow(Window, SW_SHOW);
+
+                        for (;;)
+                        {
+                            b32 IsExitRequested = false;
+
+                            MSG Message;
+                            while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE))
+                            {
+                                if (Message.message == WM_QUIT)
+                                {
+                                    IsExitRequested = true;
+                                    break;
+                                }
+
+                                TranslateMessage(&Message);
+                                DispatchMessageA(&Message);
+                            }
+
+                            if (IsExitRequested)
+                            {
+                                break;
+                            }
+
+                            glClearColor(0.2f, 0.5f, 0.2f, 1.0f);
+                            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+                            SwapBuffers(DeviceContext);
+                        }
                     }
-
-                    TranslateMessage(&Message);
-                    DispatchMessageA(&Message);
+                    else
+                    {
+                        // TODO(philip): Error message.
+                    }
                 }
-
-                if (IsExitRequested)
+                else
                 {
-                    break;
+                    // TODO(philip): Error message.
                 }
+            }
+            else
+            {
+                // TODO(philip): Error message.
             }
         }
         else
