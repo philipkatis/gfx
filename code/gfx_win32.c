@@ -1,8 +1,7 @@
 // TODO(philip): Remove junk from the Windows header file.
 #include <Windows.h>
 
-// TODO(philip): Define base types.
-// TODO(philip): Define base keywords.
+#include "gfx_base.h"
 
 static LRESULT
 Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
@@ -32,8 +31,8 @@ Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
     return Result;
 }
 
-int
-WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, int ShowCMD)
+s32
+WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 ShowCMD)
 {
     LPCSTR WindowClassName = "gfx_win32_window_class";
 
@@ -56,17 +55,24 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, int Sho
 
             for (;;)
             {
+                b32 IsExitRequested = false;
+
                 MSG Message;
                 while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE))
                 {
                     if (Message.message == WM_QUIT)
                     {
-                        // TODO(philip): Replace with a boolean.
-                        goto Exit;
+                        IsExitRequested = true;
+                        break;
                     }
 
                     TranslateMessage(&Message);
                     DispatchMessageA(&Message);
+                }
+
+                if (IsExitRequested)
+                {
+                    break;
                 }
             }
         }
@@ -79,8 +85,6 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, int Sho
     {
         // TODO(philip): Error message.
     }
-
-    Exit:
 
     return 0;
 };
