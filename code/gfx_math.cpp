@@ -17,6 +17,13 @@ Cos(f32 Value)
 }
 
 static f32
+Tan(f32 Value)
+{
+    f32 Result = tanf(Value);
+    return Result;
+}
+
+static f32
 SquareRoot(f32 Value)
 {
     f32 Result = sqrtf(Value);
@@ -102,6 +109,24 @@ M4(f32 Diagonal = 0.0f)
     Result.Elements[1 + 1 * 4] = Diagonal;
     Result.Elements[2 + 2 * 4] = Diagonal;
     Result.Elements[3 + 3 * 4] = Diagonal;
+
+    return Result;
+}
+
+static m4
+Perspective(f32 AspectRatio, f32 VerticalFOV, f32 NearPlane, f32 FarPlane)
+{
+    m4 Result = { };
+
+    f32 TanHalfVerticalFOV = Tan(VerticalFOV / 2.0f);
+    f32 FrustumLength = (FarPlane - NearPlane);
+
+    Result.Elements[0 + 0 * 4] = (1.0f / (AspectRatio * TanHalfVerticalFOV));
+    Result.Elements[1 + 1 * 4] = (1.0f / TanHalfVerticalFOV);
+
+    Result.Elements[2 + 2 * 4] = -((NearPlane + FarPlane) / FrustumLength);
+    Result.Elements[3 + 2 * 4] = -1.0f;
+    Result.Elements[2 + 3 * 4] = -((2.0f * NearPlane * FarPlane) / FrustumLength);
 
     return Result;
 }

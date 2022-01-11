@@ -234,7 +234,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                         GLint Status;
 
-                        GLchar *VertexShaderModuleSource = "#version 330 core\n\nlayout (location = 0) in vec3 Position;\n\nuniform mat4 Transform;\n\nvoid main()\n{\n    gl_Position = Transform * vec4(Position, 1.0);\n}\n";
+                        GLchar *VertexShaderModuleSource = "#version 330 core\n\nlayout (location = 0) in vec3 Position;\n\nuniform mat4 Projection;\nuniform mat4 Transform;\n\nvoid main()\n{\n    gl_Position = Projection * Transform * vec4(Position, 1.0);\n}\n";
 
                         GLuint VertexShaderModule = glCreateShader(GL_VERTEX_SHADER);
                         glShaderSource(VertexShaderModule, 1, &VertexShaderModuleSource, 0);
@@ -374,14 +374,19 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffer);
                         glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(GLuint), Indices, GL_STATIC_DRAW);
 
+                        GLint ProjectionUniformLocation = glGetUniformLocation(Program, "Projection");
                         GLint TransformUniformLocation = glGetUniformLocation(Program, "Transform");
 
                         glUseProgram(Program);
                         glClearColor(0.2f, 0.5f, 0.2f, 1.0f);
 
+                        // TODO(philip): Use the actual render area size.
+                        m4 Projection = Perspective((16.0f / 9.0f), ToRadians(45.0f), 0.01f, 10000.0f);
                         m4 Transform =  Scale(V3(0.5f, 0.5f, 0.5f)) *
                                         ToM4(AxisAngleRotate(V3(0.0f, 0.0f, 1.0f), ToRadians(45.0f))) *
-                                        Translate(V3(0.4f, 0.3f, 0.0f));
+                                        Translate(V3(0.4f, 0.3f, -2.0f));
+
+                        glUniformMatrix4fv(ProjectionUniformLocation, 1, GL_FALSE, (GLfloat *)&Projection);
                         glUniformMatrix4fv(TransformUniformLocation, 1, GL_FALSE, (GLfloat *)&Transform);
 
                         ShowWindow(Window, SW_SHOW);
@@ -414,10 +419,12 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                             SwapBuffers(DeviceContext);
                         }
 
+                        glDeleteBuffers(1, &IndexBuffer);
+                        glDeleteBuffers(1, &VertexBuffer);
+                        glDeleteVertexArrays(1, &VertexArray);
                         glDeleteProgram(Program);
                         glDeleteShader(PixelShaderModule);
                         glDeleteShader(VertexShaderModule);
-                        glDeleteVertexArrays(1, &VertexArray);
                     }
                     else
                     {
