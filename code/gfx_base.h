@@ -30,5 +30,6 @@ typedef s32                    b32;
 // TODO(philip): Ensure proper size for base types during compile time.
 
 // TODO(philip): Assert macro.
+// TODO(philip): Array count macro.
 
 #endif

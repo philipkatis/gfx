@@ -39,6 +39,12 @@ static wgl_swap_interval_ext *wglSwapIntervalEXT = 0;
 // TODO(philip): Documentation.
 
 typedef char GLchar;
+typedef signed long long int GLsizeiptr;
+
+#define GL_ARRAY_BUFFER                   0x8892
+#define GL_ELEMENT_ARRAY_BUFFER           0x8893
+
+#define GL_STATIC_DRAW                    0x88E4
 
 #define GL_VERTEX_SHADER                  0x8B31
 #define GL_FRAGMENT_SHADER                0x8B30
@@ -48,6 +54,13 @@ typedef char GLchar;
 #define GL_VALIDATE_STATUS                0x8B83
 #define GL_INFO_LOG_LENGTH                0x8B84
 
+typedef void gl_gen_buffers(GLsizei n, GLuint *buffers);
+typedef void gl_bind_buffer(GLenum target, GLuint buffer);
+typedef void gl_buffer_data(GLenum target, GLsizeiptr size, const void *data, GLenum usage);
+typedef void gl_enable_vertex_attrib_array(GLuint index);
+typedef void gl_vertex_attrib_pointer(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride,
+                                      const void *pointer);
+typedef void gl_delete_buffers(GLsizei n, const GLuint *buffers);
 typedef GLuint gl_create_shader(GLenum type);
 typedef void gl_shader_source(GLuint shader, GLsizei count, const GLchar *const*string, const GLint *length);
 typedef void gl_compile_shader(GLuint shader);
@@ -66,6 +79,12 @@ typedef void gl_gen_vertex_arrays(GLsizei n, GLuint *arrays);
 typedef void gl_bind_vertex_array(GLuint array);
 typedef void gl_delete_vertex_arrays(GLsizei n, const GLuint *arrays);
 
+static gl_gen_buffers *glGenBuffers = 0;
+static gl_bind_buffer *glBindBuffer = 0;
+static gl_buffer_data *glBufferData = 0;
+static gl_enable_vertex_attrib_array *glEnableVertexAttribArray = 0;
+static gl_vertex_attrib_pointer *glVertexAttribPointer = 0;
+static gl_delete_buffers *glDeleteBuffers = 0;
 static gl_create_shader *glCreateShader = 0;
 static gl_shader_source *glShaderSource = 0;
 static gl_compile_shader *glCompileShader = 0;
@@ -199,6 +218,12 @@ static void
 Win32LoadGLFunctions(void)
 {
     // TODO(philip): Investigate what we should do if loading one of these fails.
+    glGenBuffers = (gl_gen_buffers *)wglGetProcAddress("glGenBuffers");
+    glBindBuffer = (gl_bind_buffer *)wglGetProcAddress("glBindBuffer");
+    glBufferData = (gl_buffer_data *)wglGetProcAddress("glBufferData");
+    glEnableVertexAttribArray = (gl_enable_vertex_attrib_array *)wglGetProcAddress("glEnableVertexAttribArray");
+    glVertexAttribPointer = (gl_vertex_attrib_pointer *)wglGetProcAddress("glVertexAttribPointer");
+    glDeleteBuffers = (gl_delete_buffers *)wglGetProcAddress("glDeleteBuffers");
     glCreateShader = (gl_create_shader *)wglGetProcAddress("glCreateShader");
     glShaderSource = (gl_shader_source *)wglGetProcAddress("glShaderSource");
     glCompileShader = (gl_compile_shader *)wglGetProcAddress("glCompileShader");
@@ -284,17 +309,13 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                         Win32LoadGLFunctions();
 
-                        GLuint VertexArray;
-                        glGenVertexArrays(1, &VertexArray);
-                        glBindVertexArray(VertexArray);
-
                         // TODO(philip): Pull shader module cration into it's own function.
                         // TODO(philip): Load shader module files from disc.
                         // TODO(philip): Pull shader loading into it's own function.
 
                         GLint Status;
 
-                        GLchar *VertexShaderModuleSource = "#version 330 core\n\nvoid main()\n{\n    gl_Position = vec4(0.0, 0.0, 0.0, 1.0);\n}\n";
+                        GLchar *VertexShaderModuleSource = "#version 330 core\n\nlayout (location = 0) in vec3 Position;\n\nvoid main()\n{\n    gl_Position = vec4(Position, 1.0);\n}\n";
 
                         GLuint VertexShaderModule = glCreateShader(GL_VERTEX_SHADER);
                         glShaderSource(VertexShaderModule, 1, &VertexShaderModuleSource, 0);
@@ -401,6 +422,37 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                             Program = 0;
                         }
 
+                        // TODO(philip): Pull the mesh upload into a separate function.
+
+                        GLuint VertexArray;
+                        glGenVertexArrays(1, &VertexArray);
+                        glBindVertexArray(VertexArray);
+
+                        GLfloat Vertices[] =
+                        {
+                            -0.5f, -0.5f, 0.0f,
+                            0.5f, -0.5f, 0.0f,
+                            0.0f, 0.5f, 0.0f
+                        };
+
+                        GLuint VertexBuffer;
+                        glGenBuffers(1, &VertexBuffer);
+                        glBindBuffer(GL_ARRAY_BUFFER, VertexBuffer);
+                        glBufferData(GL_ARRAY_BUFFER, 3 * 3 * sizeof(GLfloat), Vertices, GL_STATIC_DRAW);
+
+                        glEnableVertexAttribArray(0);
+                        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
+
+                        GLuint Indices[] =
+                        {
+                            0, 1, 2
+                        };
+
+                        GLuint IndexBuffer;
+                        glGenBuffers(1, &IndexBuffer);
+                        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffer);
+                        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * sizeof(GLuint), Indices, GL_STATIC_DRAW);
+
                         glUseProgram(Program);
                         glClearColor(0.2f, 0.5f, 0.2f, 1.0f);
 
@@ -429,7 +481,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                             }
 
                             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-                            glDrawArrays(GL_POINTS, 0, 1);
+                            glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
 
                             SwapBuffers(DeviceContext);
                         }
