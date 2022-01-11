@@ -3,8 +3,11 @@
 #include <GL/gl.h>
 
 #include "gfx_base.h"
+#include "gfx_math.h"
 #include "gfx_win32.h"
 #include "gfx_gl.h"
+
+#include "gfx_math.cpp"
 
 static LRESULT
 Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
@@ -122,12 +125,16 @@ Win32LoadGLFunctions(void)
 {
     // TODO(philip): Investigate what we should do if loading one of these fails.
     // TODO(philip): Maybe make a macro to load these more easily.
+
+    // NOTE(philip): OpenGL 1.5
+
     glGenBuffers = (gl_gen_buffers *)wglGetProcAddress("glGenBuffers");
     glBindBuffer = (gl_bind_buffer *)wglGetProcAddress("glBindBuffer");
     glBufferData = (gl_buffer_data *)wglGetProcAddress("glBufferData");
-    glEnableVertexAttribArray = (gl_enable_vertex_attrib_array *)wglGetProcAddress("glEnableVertexAttribArray");
-    glVertexAttribPointer = (gl_vertex_attrib_pointer *)wglGetProcAddress("glVertexAttribPointer");
     glDeleteBuffers = (gl_delete_buffers *)wglGetProcAddress("glDeleteBuffers");
+
+    // NOTE(philip): OpenGL 2.0
+
     glCreateShader = (gl_create_shader *)wglGetProcAddress("glCreateShader");
     glShaderSource = (gl_shader_source *)wglGetProcAddress("glShaderSource");
     glCompileShader = (gl_compile_shader *)wglGetProcAddress("glCompileShader");
@@ -140,8 +147,15 @@ Win32LoadGLFunctions(void)
     glValidateProgram = (gl_validate_program *)wglGetProcAddress("glValidateProgram");
     glGetProgramiv = (gl_get_program_iv *)wglGetProcAddress("glGetProgramiv");
     glGetProgramInfoLog = (gl_get_program_info_log *)wglGetProcAddress("glGetShaderInfoLog");
+    glGetUniformLocation = (gl_get_uniform_location *)wglGetProcAddress("glGetUniformLocation");
     glUseProgram = (gl_use_program *)wglGetProcAddress("glUseProgram");
+    glUniformMatrix4fv = (gl_uniform_matrix_4fv *)wglGetProcAddress("glUniformMatrix4fv");
     glDeleteProgram = (gl_delete_program *)wglGetProcAddress("glDeleteProgram");
+    glEnableVertexAttribArray = (gl_enable_vertex_attrib_array *)wglGetProcAddress("glEnableVertexAttribArray");
+    glVertexAttribPointer = (gl_vertex_attrib_pointer *)wglGetProcAddress("glVertexAttribPointer");
+
+    // NOTE(philip): OpenGL 3.0
+
     glGenVertexArrays = (gl_gen_vertex_arrays *)wglGetProcAddress("glGenVertexArrays");
     glBindVertexArray = (gl_bind_vertex_array *)wglGetProcAddress("glBindVertexArray");
     glDeleteVertexArrays = (gl_delete_vertex_arrays *)wglGetProcAddress("glDeleteVertexArrays");
@@ -219,7 +233,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                         GLint Status;
 
-                        GLchar *VertexShaderModuleSource = "#version 330 core\n\nlayout (location = 0) in vec3 Position;\n\nvoid main()\n{\n    gl_Position = vec4(Position, 1.0);\n}\n";
+                        GLchar *VertexShaderModuleSource = "#version 330 core\n\nlayout (location = 0) in vec3 Position;\n\nuniform mat4 Transform;\n\nvoid main()\n{\n    gl_Position = Transform * vec4(Position, 1.0);\n}\n";
 
                         GLuint VertexShaderModule = glCreateShader(GL_VERTEX_SHADER);
                         glShaderSource(VertexShaderModule, 1, &VertexShaderModuleSource, 0);
@@ -357,8 +371,13 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffer);
                         glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * sizeof(GLuint), Indices, GL_STATIC_DRAW);
 
+                        GLint TransformUniformLocation = glGetUniformLocation(Program, "Transform");
+
                         glUseProgram(Program);
                         glClearColor(0.2f, 0.5f, 0.2f, 1.0f);
+
+                        m4 Transform = Translate(V3(-0.5f, -0.5f, 0.0f));
+                        glUniformMatrix4fv(TransformUniformLocation, 1, GL_FALSE, (GLfloat *)&Transform);
 
                         ShowWindow(Window, SW_SHOW);
 

@@ -23,7 +23,9 @@ typedef signed long long       s64;
 
 typedef s32                    b32;
 
-// TODO(philip): Floating point.
+typedef float                  f32;
+typedef double                 f64;
+
 // TODO(philip): Ensure proper size for base types during compile time.
 
 // TODO(philip): Assert macro.
