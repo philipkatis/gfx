@@ -1,5 +1,6 @@
 // TODO(philip): Remove junk from the Windows header file.
 #include <Windows.h>
+#include <math.h>
 #include <GL/gl.h>
 
 #include "gfx_base.h"
@@ -350,33 +351,37 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         {
                             -0.5f, -0.5f, 0.0f,
                             0.5f, -0.5f, 0.0f,
-                            0.0f, 0.5f, 0.0f
+                            0.5f, 0.5f, 0.0f,
+                            -0.5f, 0.5f, 0.0f
                         };
 
                         GLuint VertexBuffer;
                         glGenBuffers(1, &VertexBuffer);
                         glBindBuffer(GL_ARRAY_BUFFER, VertexBuffer);
-                        glBufferData(GL_ARRAY_BUFFER, 3 * 3 * sizeof(GLfloat), Vertices, GL_STATIC_DRAW);
+                        glBufferData(GL_ARRAY_BUFFER, 4 * 3 * sizeof(GLfloat), Vertices, GL_STATIC_DRAW);
 
                         glEnableVertexAttribArray(0);
                         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
 
                         GLuint Indices[] =
                         {
-                            0, 1, 2
+                            0, 1, 2,
+                            2, 3, 0
                         };
 
                         GLuint IndexBuffer;
                         glGenBuffers(1, &IndexBuffer);
                         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffer);
-                        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * sizeof(GLuint), Indices, GL_STATIC_DRAW);
+                        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(GLuint), Indices, GL_STATIC_DRAW);
 
                         GLint TransformUniformLocation = glGetUniformLocation(Program, "Transform");
 
                         glUseProgram(Program);
                         glClearColor(0.2f, 0.5f, 0.2f, 1.0f);
 
-                        m4 Transform =  Scale(V3(0.5f, 0.5f, 0.5f)) * Translate(V3(1.0f, 0.0f, 0.0f));
+                        m4 Transform =  Scale(V3(0.5f, 0.5f, 0.5f)) *
+                                        ToM4(AxisAngleRotate(V3(0.0f, 0.0f, 1.0f), ToRadians(45.0f))) *
+                                        Translate(V3(0.4f, 0.3f, 0.0f));
                         glUniformMatrix4fv(TransformUniformLocation, 1, GL_FALSE, (GLfloat *)&Transform);
 
                         ShowWindow(Window, SW_SHOW);
@@ -404,7 +409,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                             }
 
                             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-                            glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
+                            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
                             SwapBuffers(DeviceContext);
                         }
