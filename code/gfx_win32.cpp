@@ -5,10 +5,58 @@
 
 #include "gfx_base.h"
 #include "gfx_math.h"
+#include "gfx_os.h"
 #include "gfx_win32.h"
 #include "gfx_gl.h"
 
 #include "gfx_math.cpp"
+
+static b32
+OS_ReadEntireFile(char *Path, buffer *Buffer)
+{
+    // TODO(philip): Assert that the buffer is valid.
+
+    b32 Result = false;
+
+    HANDLE File = CreateFileA(Path, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    if (File != INVALID_HANDLE_VALUE)
+    {
+        if (GetFileSizeEx(File, (LARGE_INTEGER *)&Buffer->Size))
+        {
+            // TODO(philip): Change to using the Win32 API.
+            Buffer->Data = calloc(1, Buffer->Size);
+
+            DWORD BytesRead;
+            if (ReadFile(File, Buffer->Data, Buffer->Size, &BytesRead, 0) && (BytesRead == Buffer->Size))
+            {
+                Result = true;
+            }
+            else
+            {
+                OS_FreeFileMemory(Buffer);
+            }
+        }
+
+        CloseHandle(File);
+    }
+
+    return Result;
+}
+
+static void
+OS_FreeFileMemory(buffer *Buffer)
+{
+    // TODO(philip): Assert that the buffer is valid.
+
+    if (Buffer->Data)
+    {
+        // TODO(philip): Change to using the Win32 API.
+        free(Buffer->Data);
+    }
+
+    Buffer->Data = 0;
+    Buffer->Size = 0;
+}
 
 static LRESULT
 Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
@@ -229,65 +277,76 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         Win32LoadGLFunctions();
 
                         // TODO(philip): Pull shader module cration into it's own function.
-                        // TODO(philip): Load shader module files from disc.
                         // TODO(philip): Pull shader loading into it's own function.
 
                         GLint Status;
 
-                        GLchar *VertexShaderModuleSource = "#version 330 core\n\nlayout (location = 0) in vec3 Position;\n\nuniform mat4 Projection;\nuniform mat4 Transform;\n\nvoid main()\n{\n    gl_Position = Projection * Transform * vec4(Position, 1.0);\n}\n";
-
                         GLuint VertexShaderModule = glCreateShader(GL_VERTEX_SHADER);
-                        glShaderSource(VertexShaderModule, 1, &VertexShaderModuleSource, 0);
 
-                        glCompileShader(VertexShaderModule);
-                        glGetShaderiv(VertexShaderModule, GL_COMPILE_STATUS, &Status);
-
-                        if (Status == GL_FALSE)
+                        buffer VertexShaderModuleSource;
+                        if (OS_ReadEntireFile("assets\\shaders\\gfx_simple_vs.glsl", &VertexShaderModuleSource))
                         {
-                            // TODO(philip): Maybe remove this.
-                            GLint Length;
-                            glGetShaderiv(VertexShaderModule, GL_INFO_LOG_LENGTH, &Length);
+                            glShaderSource(VertexShaderModule, 1, (GLchar **)&VertexShaderModuleSource.Data,
+                                           (GLint *)&VertexShaderModuleSource.Size);
 
-                            // TODO(philip): Assert that the length is within bounds.
+                            glCompileShader(VertexShaderModule);
+                            glGetShaderiv(VertexShaderModule, GL_COMPILE_STATUS, &Status);
 
-                            GLchar InfoLog[4096];
-                            glGetShaderInfoLog(VertexShaderModule, 4096, &Length, InfoLog);
+                            if (Status == GL_FALSE)
+                            {
+                                // TODO(philip): Maybe remove this.
+                                GLint Length;
+                                glGetShaderiv(VertexShaderModule, GL_INFO_LOG_LENGTH, &Length);
 
-                            // TODO(philip): Replace this with something like a message box?
-                            OutputDebugStringA("Vertex shader module compilation failed!\n");
-                            OutputDebugStringA(InfoLog);
-                            OutputDebugStringA("\n");
+                                // TODO(philip): Assert that the length is within bounds.
 
-                            glDeleteShader(VertexShaderModule);
-                            VertexShaderModule = 0;
+                                GLchar InfoLog[4096];
+                                glGetShaderInfoLog(VertexShaderModule, 4096, &Length, InfoLog);
+
+                                // TODO(philip): Replace this with something like a message box?
+                                OutputDebugStringA("Vertex shader module compilation failed!\n");
+                                OutputDebugStringA(InfoLog);
+                                OutputDebugStringA("\n");
+
+                                glDeleteShader(VertexShaderModule);
+                                VertexShaderModule = 0;
+                            }
+
+                            OS_FreeFileMemory(&VertexShaderModuleSource);
                         }
 
-                        GLchar *PixelShaderModuleSource = "#version 330 core\n\nlayout (location = 0) out vec4 Color;\n\nvoid main()\n{\n    Color = vec4(1.0, 1.0, 1.0, 1.0);\n}\n";
-
                         GLuint PixelShaderModule = glCreateShader(GL_FRAGMENT_SHADER);
-                        glShaderSource(PixelShaderModule, 1, &PixelShaderModuleSource, 0);
 
-                        glCompileShader(PixelShaderModule);
-                        glGetShaderiv(PixelShaderModule, GL_COMPILE_STATUS, &Status);
-
-                        if (Status == GL_FALSE)
+                        buffer PixelShaderModuleSource;
+                        if (OS_ReadEntireFile("assets\\shaders\\gfx_simple_ps.glsl", &PixelShaderModuleSource))
                         {
-                            // TODO(philip): Maybe remove this.
-                            GLint Length;
-                            glGetShaderiv(PixelShaderModule, GL_INFO_LOG_LENGTH, &Length);
+                            glShaderSource(PixelShaderModule, 1, (GLchar **)&PixelShaderModuleSource.Data,
+                                           (GLint *)&PixelShaderModuleSource.Size);
 
-                            // TODO(philip): Assert that the length is within bounds.
+                            glCompileShader(PixelShaderModule);
+                            glGetShaderiv(PixelShaderModule, GL_COMPILE_STATUS, &Status);
 
-                            GLchar InfoLog[4096];
-                            glGetShaderInfoLog(PixelShaderModule, 4096, &Length, InfoLog);
+                            if (Status == GL_FALSE)
+                            {
+                                // TODO(philip): Maybe remove this.
+                                GLint Length;
+                                glGetShaderiv(PixelShaderModule, GL_INFO_LOG_LENGTH, &Length);
 
-                            // TODO(philip): Replace this with something like a message box?
-                            OutputDebugStringA("Pixel shader module compilation failed!\n");
-                            OutputDebugStringA(InfoLog);
-                            OutputDebugStringA("\n");
+                                // TODO(philip): Assert that the length is within bounds.
 
-                            glDeleteShader(PixelShaderModule);
-                            PixelShaderModule = 0;
+                                GLchar InfoLog[4096];
+                                glGetShaderInfoLog(PixelShaderModule, 4096, &Length, InfoLog);
+
+                                // TODO(philip): Replace this with something like a message box?
+                                OutputDebugStringA("Pixel shader module compilation failed!\n");
+                                OutputDebugStringA(InfoLog);
+                                OutputDebugStringA("\n");
+
+                                glDeleteShader(PixelShaderModule);
+                                PixelShaderModule = 0;
+                            }
+
+                            OS_FreeFileMemory(&PixelShaderModuleSource);
                         }
 
                         GLuint Program = glCreateProgram();

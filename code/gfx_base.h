@@ -31,4 +31,10 @@ typedef double                 f64;
 // TODO(philip): Assert macro.
 // TODO(philip): Array count macro.
 
+struct buffer
+{
+    void *Data;
+    u64 Size;
+};
+
 #endif
