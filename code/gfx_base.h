@@ -5,9 +5,6 @@
 // NOTE(philip): Base Keywords
 //
 
-#define true                   1
-#define false                  0
-
 // TODO(philip): Redefine static.
 
 //

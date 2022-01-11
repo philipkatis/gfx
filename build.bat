@@ -9,6 +9,6 @@ if not exist build (
 
 pushd build
 
-call cl -Z7 ..\code\gfx_win32.c user32.lib gdi32.lib opengl32.lib
+call cl -Z7 ..\code\gfx_win32.cpp user32.lib gdi32.lib opengl32.lib
 
 popd

@@ -41,7 +41,7 @@ Win32LoadWLGExtensions(HINSTANCE Instance)
 {
     LPCSTR WindowClassName = "gfx_dummy_win32_window_class";
 
-    WNDCLASSA WindowClass = {0};
+    WNDCLASSA WindowClass = { };
     WindowClass.style = CS_OWNDC;
     WindowClass.lpfnWndProc = DefWindowProcA;
     WindowClass.hInstance = Instance;
@@ -54,7 +54,7 @@ Win32LoadWLGExtensions(HINSTANCE Instance)
         {
             HDC DeviceContext = GetDC(Window);
 
-            PIXELFORMATDESCRIPTOR DesiredPixelFormat = {0};
+            PIXELFORMATDESCRIPTOR DesiredPixelFormat = { };
             DesiredPixelFormat.nSize = sizeof(PIXELFORMATDESCRIPTOR);
             DesiredPixelFormat.nVersion = 1;
             DesiredPixelFormat.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
@@ -154,7 +154,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
     LPCSTR WindowClassName = "gfx_win32_window_class";
 
-    WNDCLASSA WindowClass = {0};
+    WNDCLASSA WindowClass = { };
     WindowClass.style = CS_VREDRAW | CS_HREDRAW | CS_OWNDC;
     WindowClass.lpfnWndProc = Win32WindowProcedure;
     WindowClass.hInstance = Instance;
