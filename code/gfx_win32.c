@@ -3,105 +3,8 @@
 #include <GL/gl.h>
 
 #include "gfx_base.h"
-
-// TODO(philip): Move these to a header file.
-// TODO(philip): Documentation.
-
-#define WGL_DRAW_TO_WINDOW_ARB            0x2001
-#define WGL_SUPPORT_OPENGL_ARB            0x2010
-#define WGL_DOUBLE_BUFFER_ARB             0x2011
-#define WGL_PIXEL_TYPE_ARB                0x2013
-#define WGL_COLOR_BITS_ARB                0x2014
-#define WGL_DEPTH_BITS_ARB                0x2022
-#define WGL_STENCIL_BITS_ARB              0x2023
-
-#define WGL_TYPE_RGBA_ARB                 0x202B
-
-#define WGL_CONTEXT_MAJOR_VERSION_ARB     0x2091
-#define WGL_CONTEXT_MINOR_VERSION_ARB     0x2092
-#define WGL_CONTEXT_FLAGS_ARB             0x2094
-#define WGL_CONTEXT_PROFILE_MASK_ARB      0x9126
-
-#define WGL_CONTEXT_DEBUG_BIT_ARB         0x00000001
-
-#define WGL_CONTEXT_CORE_PROFILE_BIT_ARB  0x00000001
-
-typedef BOOL wgl_choose_pixel_format_arb(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList,
-                                         UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
-typedef HGLRC wgl_create_context_attribs_arb(HDC hDC, HGLRC hShareContext, const int *attribList);
-typedef BOOL wgl_swap_interval_ext(int interval);
-
-static wgl_choose_pixel_format_arb *wglChoosePixelFormatARB = 0;
-static wgl_create_context_attribs_arb *wglCreateContextAttribsARB = 0;
-static wgl_swap_interval_ext *wglSwapIntervalEXT = 0;
-
-// TODO(philip): Move these to a header file.
-// TODO(philip): Documentation.
-
-typedef char GLchar;
-typedef signed long long int GLsizeiptr;
-
-#define GL_ARRAY_BUFFER                   0x8892
-#define GL_ELEMENT_ARRAY_BUFFER           0x8893
-
-#define GL_STATIC_DRAW                    0x88E4
-
-#define GL_VERTEX_SHADER                  0x8B31
-#define GL_FRAGMENT_SHADER                0x8B30
-
-#define GL_COMPILE_STATUS                 0x8B81
-#define GL_LINK_STATUS                    0x8B82
-#define GL_VALIDATE_STATUS                0x8B83
-#define GL_INFO_LOG_LENGTH                0x8B84
-
-typedef void gl_gen_buffers(GLsizei n, GLuint *buffers);
-typedef void gl_bind_buffer(GLenum target, GLuint buffer);
-typedef void gl_buffer_data(GLenum target, GLsizeiptr size, const void *data, GLenum usage);
-typedef void gl_enable_vertex_attrib_array(GLuint index);
-typedef void gl_vertex_attrib_pointer(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride,
-                                      const void *pointer);
-typedef void gl_delete_buffers(GLsizei n, const GLuint *buffers);
-typedef GLuint gl_create_shader(GLenum type);
-typedef void gl_shader_source(GLuint shader, GLsizei count, const GLchar *const*string, const GLint *length);
-typedef void gl_compile_shader(GLuint shader);
-typedef void gl_get_shader_iv(GLuint shader, GLenum pname, GLint *params);
-typedef void gl_get_shader_info_log(GLuint shader, GLsizei bufSize, GLsizei *length, GLchar *infoLog);
-typedef void gl_delete_shader(GLuint shader);
-typedef GLuint gl_create_program(void);
-typedef void gl_attach_shader(GLuint program, GLuint shader);
-typedef void gl_link_program(GLuint program);
-typedef void gl_validate_program(GLuint program);
-typedef void gl_get_program_iv(GLuint program, GLenum pname, GLint *params);
-typedef void gl_get_program_info_log(GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog);
-typedef void gl_use_program(GLuint program);
-typedef void gl_delete_program(GLuint program);
-typedef void gl_gen_vertex_arrays(GLsizei n, GLuint *arrays);
-typedef void gl_bind_vertex_array(GLuint array);
-typedef void gl_delete_vertex_arrays(GLsizei n, const GLuint *arrays);
-
-static gl_gen_buffers *glGenBuffers = 0;
-static gl_bind_buffer *glBindBuffer = 0;
-static gl_buffer_data *glBufferData = 0;
-static gl_enable_vertex_attrib_array *glEnableVertexAttribArray = 0;
-static gl_vertex_attrib_pointer *glVertexAttribPointer = 0;
-static gl_delete_buffers *glDeleteBuffers = 0;
-static gl_create_shader *glCreateShader = 0;
-static gl_shader_source *glShaderSource = 0;
-static gl_compile_shader *glCompileShader = 0;
-static gl_get_shader_iv *glGetShaderiv = 0;
-static gl_get_shader_info_log *glGetShaderInfoLog = 0;
-static gl_delete_shader *glDeleteShader = 0;
-static gl_create_program *glCreateProgram = 0;
-static gl_attach_shader *glAttachShader = 0;
-static gl_link_program *glLinkProgram = 0;
-static gl_validate_program *glValidateProgram = 0;
-static gl_get_program_iv *glGetProgramiv = 0;
-static gl_get_program_info_log *glGetProgramInfoLog = 0;
-static gl_use_program *glUseProgram = 0;
-static gl_delete_program *glDeleteProgram = 0;
-static gl_gen_vertex_arrays *glGenVertexArrays = 0;
-static gl_bind_vertex_array *glBindVertexArray = 0;
-static gl_delete_vertex_arrays *glDeleteVertexArrays = 0;
+#include "gfx_win32.h"
+#include "gfx_gl.h"
 
 static LRESULT
 Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
@@ -218,6 +121,7 @@ static void
 Win32LoadGLFunctions(void)
 {
     // TODO(philip): Investigate what we should do if loading one of these fails.
+    // TODO(philip): Maybe make a macro to load these more easily.
     glGenBuffers = (gl_gen_buffers *)wglGetProcAddress("glGenBuffers");
     glBindBuffer = (gl_bind_buffer *)wglGetProcAddress("glBindBuffer");
     glBufferData = (gl_buffer_data *)wglGetProcAddress("glBufferData");
