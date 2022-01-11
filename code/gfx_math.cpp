@@ -42,3 +42,41 @@ Translate(v3 Translation)
 
     return Matrix;
 }
+
+static m4
+Scale(v3 Scale)
+{
+    m4 Matrix = Identity();
+
+    Matrix.Elements[0 + 0 * 4] = Scale.X;
+    Matrix.Elements[1 + 1 * 4] = Scale.Y;
+    Matrix.Elements[2 + 2 * 4] = Scale.Z;
+
+    return Matrix;
+}
+
+static m4
+operator*(m4& Left, m4& Right)
+{
+    m4 Result = { };
+
+    for (u32 Row = 0;
+         Row < 4;
+         ++Row)
+    {
+        for (u32 Column = 0;
+             Column < 4;
+             ++Column)
+        {
+            for (u32 Index = 0;
+                 Index < 4;
+                 ++Index)
+            {
+                Result.Elements[Column + Row * 4] += Left.Elements[Index + Row * 4] *
+                    Right.Elements[Column + Index * 4];
+            }
+        }
+    }
+
+    return Result;
+}

@@ -376,7 +376,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         glUseProgram(Program);
                         glClearColor(0.2f, 0.5f, 0.2f, 1.0f);
 
-                        m4 Transform = Translate(V3(-0.5f, -0.5f, 0.0f));
+                        m4 Transform =  Scale(V3(0.5f, 0.5f, 0.5f)) * Translate(V3(1.0f, 0.0f, 0.0f));
                         glUniformMatrix4fv(TransformUniformLocation, 1, GL_FALSE, (GLfloat *)&Transform);
 
                         ShowWindow(Window, SW_SHOW);
