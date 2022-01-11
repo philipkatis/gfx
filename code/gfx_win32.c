@@ -35,6 +35,55 @@ static wgl_choose_pixel_format_arb *wglChoosePixelFormatARB = 0;
 static wgl_create_context_attribs_arb *wglCreateContextAttribsARB = 0;
 static wgl_swap_interval_ext *wglSwapIntervalEXT = 0;
 
+// TODO(philip): Move these to a header file.
+// TODO(philip): Documentation.
+
+typedef char GLchar;
+
+#define GL_VERTEX_SHADER                  0x8B31
+#define GL_FRAGMENT_SHADER                0x8B30
+
+#define GL_COMPILE_STATUS                 0x8B81
+#define GL_LINK_STATUS                    0x8B82
+#define GL_VALIDATE_STATUS                0x8B83
+#define GL_INFO_LOG_LENGTH                0x8B84
+
+typedef GLuint gl_create_shader(GLenum type);
+typedef void gl_shader_source(GLuint shader, GLsizei count, const GLchar *const*string, const GLint *length);
+typedef void gl_compile_shader(GLuint shader);
+typedef void gl_get_shader_iv(GLuint shader, GLenum pname, GLint *params);
+typedef void gl_get_shader_info_log(GLuint shader, GLsizei bufSize, GLsizei *length, GLchar *infoLog);
+typedef void gl_delete_shader(GLuint shader);
+typedef GLuint gl_create_program(void);
+typedef void gl_attach_shader(GLuint program, GLuint shader);
+typedef void gl_link_program(GLuint program);
+typedef void gl_validate_program(GLuint program);
+typedef void gl_get_program_iv(GLuint program, GLenum pname, GLint *params);
+typedef void gl_get_program_info_log(GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog);
+typedef void gl_use_program(GLuint program);
+typedef void gl_delete_program(GLuint program);
+typedef void gl_gen_vertex_arrays(GLsizei n, GLuint *arrays);
+typedef void gl_bind_vertex_array(GLuint array);
+typedef void gl_delete_vertex_arrays(GLsizei n, const GLuint *arrays);
+
+static gl_create_shader *glCreateShader = 0;
+static gl_shader_source *glShaderSource = 0;
+static gl_compile_shader *glCompileShader = 0;
+static gl_get_shader_iv *glGetShaderiv = 0;
+static gl_get_shader_info_log *glGetShaderInfoLog = 0;
+static gl_delete_shader *glDeleteShader = 0;
+static gl_create_program *glCreateProgram = 0;
+static gl_attach_shader *glAttachShader = 0;
+static gl_link_program *glLinkProgram = 0;
+static gl_validate_program *glValidateProgram = 0;
+static gl_get_program_iv *glGetProgramiv = 0;
+static gl_get_program_info_log *glGetProgramInfoLog = 0;
+static gl_use_program *glUseProgram = 0;
+static gl_delete_program *glDeleteProgram = 0;
+static gl_gen_vertex_arrays *glGenVertexArrays = 0;
+static gl_bind_vertex_array *glBindVertexArray = 0;
+static gl_delete_vertex_arrays *glDeleteVertexArrays = 0;
+
 static LRESULT
 Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
 {
@@ -64,6 +113,7 @@ Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
 }
 
 // TODO(philip): Documentation.
+// TODO(philip): Maybe return success or failure.
 static void
 Win32LoadWLGExtensions(HINSTANCE Instance)
 {
@@ -145,6 +195,29 @@ Win32LoadWLGExtensions(HINSTANCE Instance)
     UnregisterClassA(WindowClassName, Instance);
 }
 
+static void
+Win32LoadGLFunctions(void)
+{
+    // TODO(philip): Investigate what we should do if loading one of these fails.
+    glCreateShader = (gl_create_shader *)wglGetProcAddress("glCreateShader");
+    glShaderSource = (gl_shader_source *)wglGetProcAddress("glShaderSource");
+    glCompileShader = (gl_compile_shader *)wglGetProcAddress("glCompileShader");
+    glGetShaderiv = (gl_get_shader_iv *)wglGetProcAddress("glGetShaderiv");
+    glGetShaderInfoLog = (gl_get_shader_info_log *)wglGetProcAddress("glGetShaderInfoLog");
+    glDeleteShader = (gl_delete_shader *)wglGetProcAddress("glDeleteShader");
+    glCreateProgram = (gl_create_program *)wglGetProcAddress("glCreateProgram");
+    glAttachShader = (gl_attach_shader *)wglGetProcAddress("glAttachShader");
+    glLinkProgram = (gl_link_program *)wglGetProcAddress("glLinkProgram");
+    glValidateProgram = (gl_validate_program *)wglGetProcAddress("glValidateProgram");
+    glGetProgramiv = (gl_get_program_iv *)wglGetProcAddress("glGetProgramiv");
+    glGetProgramInfoLog = (gl_get_program_info_log *)wglGetProcAddress("glGetShaderInfoLog");
+    glUseProgram = (gl_use_program *)wglGetProcAddress("glUseProgram");
+    glDeleteProgram = (gl_delete_program *)wglGetProcAddress("glDeleteProgram");
+    glGenVertexArrays = (gl_gen_vertex_arrays *)wglGetProcAddress("glGenVertexArrays");
+    glBindVertexArray = (gl_bind_vertex_array *)wglGetProcAddress("glBindVertexArray");
+    glDeleteVertexArrays = (gl_delete_vertex_arrays *)wglGetProcAddress("glDeleteVertexArrays");
+}
+
 s32
 WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 ShowCMD)
 {
@@ -209,6 +282,128 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                     {
                         wglMakeCurrent(DeviceContext, OpenGLContext);
 
+                        Win32LoadGLFunctions();
+
+                        GLuint VertexArray;
+                        glGenVertexArrays(1, &VertexArray);
+                        glBindVertexArray(VertexArray);
+
+                        // TODO(philip): Pull shader module cration into it's own function.
+                        // TODO(philip): Load shader module files from disc.
+                        // TODO(philip): Pull shader loading into it's own function.
+
+                        GLint Status;
+
+                        GLchar *VertexShaderModuleSource = "#version 330 core\n\nvoid main()\n{\n    gl_Position = vec4(0.0, 0.0, 0.0, 1.0);\n}\n";
+
+                        GLuint VertexShaderModule = glCreateShader(GL_VERTEX_SHADER);
+                        glShaderSource(VertexShaderModule, 1, &VertexShaderModuleSource, 0);
+
+                        glCompileShader(VertexShaderModule);
+                        glGetShaderiv(VertexShaderModule, GL_COMPILE_STATUS, &Status);
+
+                        if (Status == GL_FALSE)
+                        {
+                            // TODO(philip): Maybe remove this.
+                            GLint Length;
+                            glGetShaderiv(VertexShaderModule, GL_INFO_LOG_LENGTH, &Length);
+
+                            // TODO(philip): Assert that the length is within bounds.
+
+                            GLchar InfoLog[4096];
+                            glGetShaderInfoLog(VertexShaderModule, 4096, &Length, InfoLog);
+
+                            // TODO(philip): Replace this with something like a message box?
+                            OutputDebugStringA("Vertex shader module compilation failed!\n");
+                            OutputDebugStringA(InfoLog);
+                            OutputDebugStringA("\n");
+
+                            glDeleteShader(VertexShaderModule);
+                            VertexShaderModule = 0;
+                        }
+
+                        GLchar *PixelShaderModuleSource = "#version 330 core\n\nlayout (location = 0) out vec4 Color;\n\nvoid main()\n{\n    Color = vec4(1.0, 1.0, 1.0, 1.0);\n}\n";
+
+                        GLuint PixelShaderModule = glCreateShader(GL_FRAGMENT_SHADER);
+                        glShaderSource(PixelShaderModule, 1, &PixelShaderModuleSource, 0);
+
+                        glCompileShader(PixelShaderModule);
+                        glGetShaderiv(PixelShaderModule, GL_COMPILE_STATUS, &Status);
+
+                        if (Status == GL_FALSE)
+                        {
+                            // TODO(philip): Maybe remove this.
+                            GLint Length;
+                            glGetShaderiv(PixelShaderModule, GL_INFO_LOG_LENGTH, &Length);
+
+                            // TODO(philip): Assert that the length is within bounds.
+
+                            GLchar InfoLog[4096];
+                            glGetShaderInfoLog(PixelShaderModule, 4096, &Length, InfoLog);
+
+                            // TODO(philip): Replace this with something like a message box?
+                            OutputDebugStringA("Pixel shader module compilation failed!\n");
+                            OutputDebugStringA(InfoLog);
+                            OutputDebugStringA("\n");
+
+                            glDeleteShader(PixelShaderModule);
+                            PixelShaderModule = 0;
+                        }
+
+                        GLuint Program = glCreateProgram();
+
+                        glAttachShader(Program, VertexShaderModule);
+                        glAttachShader(Program, PixelShaderModule);
+
+                        glLinkProgram(Program);
+                        glGetProgramiv(Program, GL_LINK_STATUS, &Status);
+
+                        if (Status == GL_FALSE)
+                        {
+                            // TODO(philip): Maybe remove this.
+                            GLint Length;
+                            glGetProgramiv(Program, GL_INFO_LOG_LENGTH, &Length);
+
+                            // TODO(philip): Assert that the length is within bounds.
+
+                            GLchar InfoLog[4096];
+                            glGetProgramInfoLog(Program, 4096, &Length, InfoLog);
+
+                            // TODO(philip): Replace this with something like a message box?
+                            OutputDebugStringA("Shader program linking failed!\n");
+                            OutputDebugStringA(InfoLog);
+                            OutputDebugStringA("\n");
+
+                            glDeleteProgram(Program);
+                            Program = 0;
+                        }
+
+                        glValidateProgram(Program);
+                        glGetProgramiv(Program, GL_VALIDATE_STATUS, &Status);
+
+                        if (Status == GL_FALSE)
+                        {
+                            // TODO(philip): Maybe remove this.
+                            GLint Length;
+                            glGetProgramiv(Program, GL_INFO_LOG_LENGTH, &Length);
+
+                            // TODO(philip): Assert that the length is within bounds.
+
+                            GLchar InfoLog[4096];
+                            glGetProgramInfoLog(Program, 4096, &Length, InfoLog);
+
+                            // TODO(philip): Replace this with something like a message box?
+                            OutputDebugStringA("Shader program validation failed!\n");
+                            OutputDebugStringA(InfoLog);
+                            OutputDebugStringA("\n");
+
+                            glDeleteProgram(Program);
+                            Program = 0;
+                        }
+
+                        glUseProgram(Program);
+                        glClearColor(0.2f, 0.5f, 0.2f, 1.0f);
+
                         ShowWindow(Window, SW_SHOW);
 
                         for (;;)
@@ -233,11 +428,16 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 break;
                             }
 
-                            glClearColor(0.2f, 0.5f, 0.2f, 1.0f);
                             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+                            glDrawArrays(GL_POINTS, 0, 1);
 
                             SwapBuffers(DeviceContext);
                         }
+
+                        glDeleteProgram(Program);
+                        glDeleteShader(PixelShaderModule);
+                        glDeleteShader(VertexShaderModule);
+                        glDeleteVertexArrays(1, &VertexArray);
                     }
                     else
                     {

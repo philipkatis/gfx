@@ -29,4 +29,6 @@ typedef s32                    b32;
 // TODO(philip): Floating point.
 // TODO(philip): Ensure proper size for base types during compile time.
 
+// TODO(philip): Assert macro.
+
 #endif
