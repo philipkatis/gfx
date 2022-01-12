@@ -1,3 +1,47 @@
+//
+// NOTE(philip): OBJ
+//
+
+function char *
+OBJ_ParseV2(char *Pointer, v2 *Vector)
+{
+    for (u32 ComponentIndex = 0;
+         ComponentIndex < 2;
+         ++ComponentIndex)
+    {
+        Pointer = SkipWhitespace(++Pointer);
+        char *ComponentString = Pointer;
+
+        Pointer = SkipUntilWhitespace(Pointer);
+        *Pointer = 0;
+
+        // TODO(philip): Replace atof.
+        Vector->Data[ComponentIndex] = atof(ComponentString);
+    }
+
+    return Pointer;
+}
+
+function char *
+OBJ_ParseV3(char *Pointer, v3 *Vector)
+{
+    for (u32 ComponentIndex = 0;
+         ComponentIndex < 3;
+         ++ComponentIndex)
+    {
+        Pointer = SkipWhitespace(++Pointer);
+        char *ComponentString = Pointer;
+
+        Pointer = SkipUntilWhitespace(Pointer);
+        *Pointer = 0;
+
+        // TODO(philip): Replace atof.
+        Vector->Data[ComponentIndex] = atof(ComponentString);
+    }
+
+    return Pointer;
+}
+
 struct index_set
 {
     u64 Position;
@@ -90,86 +134,20 @@ LoadOBJ(char *Path, mesh_asset *Asset)
                     {
                         case 't':
                         {
-                            // TODO(philip): Pull this out to a function.
-                            // TODO(philip): Do this in a loop.
-
-                            Pointer = SkipWhitespace(++Pointer);
-                            char *XString = Pointer;
-
-                            Pointer = SkipUntilWhitespace(Pointer);
-                            *Pointer = 0;
-
-                            Pointer = SkipWhitespace(++Pointer);
-                            char *YString = Pointer;
-
-                            Pointer = SkipUntilWhitespace(Pointer);
-                            *Pointer = 0;
-
-                            v2 *TextureCoordinate = TextureCoordinates +
-                                TextureCoordinateIndex++;
-
-                            TextureCoordinate->X = atof(XString);
-                            TextureCoordinate->Y = atof(YString);
+                            v2 *TextureCoordinate = TextureCoordinates + TextureCoordinateIndex++;
+                            Pointer = OBJ_ParseV2(Pointer, TextureCoordinate);
                         } break;
 
                         case 'n':
                         {
-                            // TODO(philip): Pull this out to a function.
-                            // TODO(philip): Do this in a loop.
-
-                            Pointer = SkipWhitespace(++Pointer);
-                            char *XString = Pointer;
-
-                            Pointer = SkipUntilWhitespace(Pointer);
-                            *Pointer = 0;
-
-                            Pointer = SkipWhitespace(++Pointer);
-                            char *YString = Pointer;
-
-                            Pointer = SkipUntilWhitespace(Pointer);
-                            *Pointer = 0;
-
-                            Pointer = SkipWhitespace(++Pointer);
-                            char *ZString = Pointer;
-
-                            Pointer = SkipUntilWhitespace(Pointer);
-                            *Pointer = 0;
-
                             v3 *Normal = Normals + NormalIndex++;
-
-                            Normal->X = atof(XString);
-                            Normal->Y = atof(YString);
-                            Normal->Z = atof(ZString);
+                            Pointer = OBJ_ParseV3(Pointer, Normal);
                         } break;
 
                         default:
                         {
-                            // TODO(philip): Pull this out to a function.
-                            // TODO(philip): Do this in a loop.
-
-                            Pointer = SkipWhitespace(Pointer);
-                            char *XString = Pointer;
-
-                            Pointer = SkipUntilWhitespace(Pointer);
-                            *Pointer = 0;
-
-                            Pointer = SkipWhitespace(++Pointer);
-                            char *YString = Pointer;
-
-                            Pointer = SkipUntilWhitespace(Pointer);
-                            *Pointer = 0;
-
-                            Pointer = SkipWhitespace(++Pointer);
-                            char *ZString = Pointer;
-
-                            Pointer = SkipUntilWhitespace(Pointer);
-                            *Pointer = 0;
-
                             v3 *Position = Positions + PositionIndex++;
-
-                            Position->X = atof(XString);
-                            Position->Y = atof(YString);
-                            Position->Z = atof(ZString);
+                            Pointer = OBJ_ParseV3(Pointer, Position);
                         } break;
                     }
                 } break;

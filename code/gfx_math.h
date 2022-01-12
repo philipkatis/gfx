@@ -3,18 +3,27 @@
 
 #define PI (3.1415926535897932f)
 
-// TODO(philip): Change these to unions. Store as array as well.
-struct v2
+union v2
 {
-    f32 X;
-    f32 Y;
+    struct
+    {
+        f32 X;
+        f32 Y;
+    };
+
+    f32 Data[2];
 };
 
-struct v3
+union v3
 {
-    f32 X;
-    f32 Y;
-    f32 Z;
+    struct
+    {
+        f32 X;
+        f32 Y;
+        f32 Z;
+    };
+
+    f32 Data[3];
 };
 
 struct quat
