@@ -42,12 +42,49 @@ OBJ_ParseV3(char *Pointer, v3 *Vector)
     return Pointer;
 }
 
-struct index_set
+// TODO(philip): Documentation.
+function u32
+GetIndexSetID(index_set_table *Table, u64 Position, u64 TextureCoordinate, u64 Normal)
 {
-    u64 Position;
-    u64 TextureCoordinate;
-    u64 Normal;
-};
+    u32 ID = 0;
+    b32 Found = false;
+
+    // TODO(philip): Better hash function.
+    u64 Hash = Position + TextureCoordinate + Normal;
+    u64 Slot = Hash % INDEX_SET_TABLE_SLOT_COUNT;
+
+    for (index_set *Set = Table->Slots[Slot];
+         Set;
+         Set = Set->Next)
+    {
+        if ((Set->Position == Position) && (Set->TextureCoordinate == TextureCoordinate) &&
+            (Set->Normal == Normal))
+        {
+            ID = Set->ID;
+            Found = true;
+
+            break;
+        }
+    }
+
+    if (!Found)
+    {
+        // TODO(philip): Change to using a memory arena.
+        index_set *Set = (index_set *)OS_AllocateMemory(sizeof(index_set));
+
+        Set->ID = Table->Count++;
+        Set->Position = Position;
+        Set->TextureCoordinate = TextureCoordinate;
+        Set->Normal = Normal;
+
+        Set->Next = Table->Slots[Slot];
+        Table->Slots[Slot] = Set;
+
+        ID = Set->ID;
+    }
+
+    return ID;
+}
 
 // TODO(philip): Documentation.
 // TODO(philip): Return success or failure.
@@ -108,18 +145,17 @@ LoadOBJ(char *Path, mesh_asset *Asset)
         }
 
         v3 *Positions = (v3 *)OS_AllocateMemory(PositionCount * sizeof(v3));
-        v2 *TextureCoordinates = (v2 *)OS_AllocateMemory(TextureCoordinateCount * sizeof(v2));
-        v3 *Normals = (v3 *)OS_AllocateMemory(NormalCount * sizeof(v3));
+        u64 PositionIndex = 0;
 
-        // TODO(philip): Change this into a hash table.
-        index_set *UniqueIndexSets = (index_set *)OS_AllocateMemory(TriangleCount * 3 * sizeof(index_set));
-        u64 UniqueIndexSetCount = 0;
+        v2 *TextureCoordinates = (v2 *)OS_AllocateMemory(TextureCoordinateCount * sizeof(v2));
+        u64 TextureCoordinateIndex = 0;
+
+        v3 *Normals = (v3 *)OS_AllocateMemory(NormalCount * sizeof(v3));
+        u64 NormalIndex = 0;
+
+        index_set_table IndexSetTable = { };
 
         Asset->Indices = (u32 *)OS_AllocateMemory(TriangleCount * 3 * sizeof(u32));
-
-        u64 PositionIndex = 0;
-        u64 TextureCoordinateIndex = 0;
-        u64 NormalIndex = 0;
 
         char *Pointer = (char *)FileData.Data;
         char *End = (char *)FileData.Data + FileData.Size;
@@ -176,41 +212,12 @@ LoadOBJ(char *Path, mesh_asset *Asset)
                         Pointer = SkipUntilWhitespace(Pointer);
                         *Pointer = 0;
 
-                        u64 Position = atoi(PositionString);
-                        u64 TextureCoordinate = atoi(TextureCoordinateString);
-                        u64 Normal = atoi(NormalString);
+                        u64 Position = atoi(PositionString) - 1;
+                        u64 TextureCoordinate = atoi(TextureCoordinateString) - 1;
+                        u64 Normal = atoi(NormalString) - 1;
 
-                        b32 Found = false;
-                        u64 SetID = 0;
-
-                        // TODO(philip): Replace this with a search into the hash table.
-                        for (u64 Index = 0;
-                             Index < UniqueIndexSetCount;
-                             ++Index)
-                        {
-                            index_set *Set = UniqueIndexSets + Index;
-                            if (Set->Position == Position &&
-                                Set->TextureCoordinate == TextureCoordinate &&
-                                Set->Normal == Normal)
-                            {
-                                Found = true;
-                                SetID = Index;
-
-                                break;
-                            }
-                        }
-
-                        if (!Found)
-                        {
-                            SetID = UniqueIndexSetCount;
-
-                            index_set *Set = UniqueIndexSets + UniqueIndexSetCount++;
-                            Set->Position = Position;
-                            Set->TextureCoordinate = TextureCoordinate;
-                            Set->Normal = Normal;
-                        }
-
-                        Asset->Indices[Asset->IndexCount++] = SetID;
+                        u64 ID = GetIndexSetID(&IndexSetTable, Position, TextureCoordinate, Normal);
+                        Asset->Indices[Asset->IndexCount++] = ID;
                     }
                 } break;
 
@@ -223,22 +230,30 @@ LoadOBJ(char *Path, mesh_asset *Asset)
             ++Pointer;
         }
 
-        Asset->VertexCount = UniqueIndexSetCount;
+        Asset->VertexCount = IndexSetTable.Count;
         Asset->Vertices = (vertex *)OS_AllocateMemory(Asset->VertexCount * sizeof(vertex));
 
-        for (u64 Index = 0;
-             Index < UniqueIndexSetCount;
-             ++Index)
+        for (u64 Slot = 0;
+             Slot < INDEX_SET_TABLE_SLOT_COUNT;
+             ++Slot)
         {
-            index_set *Set = UniqueIndexSets + Index;
-            vertex *Vertex = Asset->Vertices + Index;
+            index_set *Set = IndexSetTable.Slots[Slot];
+            while (Set)
+            {
+                index_set *Next = Set->Next;
 
-            Vertex->Position = Positions[Set->Position - 1];
-            Vertex->TextureCoordinate = TextureCoordinates[Set->TextureCoordinate - 1];
-            Vertex->Normal = Normals[Set->Normal - 1];
+                vertex *Vertex = Asset->Vertices + Set->ID;
+                Vertex->Position = Positions[Set->Position];
+                Vertex->TextureCoordinate = TextureCoordinates[Set->TextureCoordinate];
+                Vertex->Normal = Normals[Set->Normal];
+
+                // TODO(philip): Change to using a memory arena.
+                OS_FreeMemory(Set);
+
+                Set = Next;
+            }
         }
 
-        OS_FreeMemory(UniqueIndexSets);
         OS_FreeMemory(Normals);
         OS_FreeMemory(TextureCoordinates);
         OS_FreeMemory(Positions);

@@ -1,6 +1,25 @@
 #ifndef GFX_ASSET_H
 #define GFX_ASSET_H
 
+struct index_set
+{
+    u64 ID;
+    u64 Position;
+    u64 TextureCoordinate;
+    u64 Normal;
+
+    index_set *Next;
+};
+
+// TODO(philip): Is this good enough?
+#define INDEX_SET_TABLE_SLOT_COUNT 4096
+
+struct index_set_table
+{
+    index_set *Slots[INDEX_SET_TABLE_SLOT_COUNT];
+    u64 Count;
+};
+
 // TODO(philip): Remove this.
 struct vertex
 {
