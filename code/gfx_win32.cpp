@@ -211,6 +211,22 @@ Win32LoadGLFunctions(void)
 
 #undef Load
 
+// TODO(philip): Move this.
+struct index_set
+{
+    u64 Position;
+    u64 TextureCoordinate;
+    u64 Normal;
+};
+
+// TODO(philip): Move this.
+struct vertex
+{
+    v3 Position;
+    v2 TextureCoordinate;
+    v3 Normal;
+};
+
 s32
 WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 ShowCMD)
 {
@@ -407,6 +423,387 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         glGenVertexArrays(1, &VertexArray);
                         glBindVertexArray(VertexArray);
 
+                        vertex *MeshVertices = 0;
+                        u64 MeshVertexCount = 0;
+
+                        u32 *MeshIndices = 0;
+                        u64 MeshIndexCount = 0;
+
+                        // TODO(philip): Move to separate file and function.
+                        // TODO(philip): Documentation.
+                        {
+                            buffer FileData;
+                            if (OS_ReadEntireFile("assets\\meshes\\woman1.obj", &FileData))
+                            {
+                                u64 PositionCount = 0;
+                                u64 TextureCoordinateCount = 0;
+                                u64 NormalCount = 0;
+                                u64 TriangleCount = 0;
+
+                                {
+                                    char *Pointer = (char *)FileData.Data;
+                                    char *End = (char *)FileData.Data + FileData.Size;
+
+                                    while (Pointer != End)
+                                    {
+                                        switch (*Pointer)
+                                        {
+                                            case 'v':
+                                            {
+                                                switch (*(++Pointer))
+                                                {
+                                                    case 't':
+                                                    {
+                                                        ++TextureCoordinateCount;
+                                                    } break;
+
+                                                    case 'n':
+                                                    {
+                                                        ++NormalCount;
+                                                    } break;
+
+                                                    default:
+                                                    {
+                                                        ++PositionCount;
+                                                    } break;
+                                                }
+                                            } break;
+
+                                            case 'f':
+                                            {
+                                                ++TriangleCount;
+                                            } break;
+                                        }
+
+                                        // TODO(philip): Pull to it's own function.
+                                        while (*Pointer && (*Pointer != '\n'))
+                                        {
+                                            ++Pointer;
+                                        }
+
+                                        ++Pointer;
+                                    }
+                                }
+
+                                // TODO(philip): Change to using the Win32 API.
+                                v3 *Positions = (v3 *)calloc(1, PositionCount * sizeof(v3));
+                                v2 *TextureCoordinates = (v2 *)calloc(1, TextureCoordinateCount * sizeof(v2));
+                                v3 *Normals = (v3 *)calloc(1, NormalCount * sizeof(v3));
+
+                                // TODO(philip): Change this into a hash table.
+                                index_set *UniqueIndexSets = (index_set *)calloc(1, TriangleCount * 3 * sizeof(index_set));
+                                u64 UniqueIndexSetCount = 0;
+
+                                MeshIndices = (u32 *)calloc(1, TriangleCount * 3 * sizeof(u32));
+
+                                u64 PositionIndex = 0;
+                                u64 TextureCoordinateIndex = 0;
+                                u64 NormalIndex = 0;
+
+                                char *Pointer = (char *)FileData.Data;
+                                char *End = (char *)FileData.Data + FileData.Size;
+
+                                while (Pointer != End)
+                                {
+                                    switch (*Pointer)
+                                    {
+                                        case 'v':
+                                        {
+                                            switch (*(++Pointer))
+                                            {
+                                                case 't':
+                                                {
+                                                    ++Pointer;
+
+                                                    // TODO(philip): Pull this out to a function.
+                                                    // TODO(philip): Do this in a loop.
+
+                                                    // TODO(philip): Replace isspace with custom function.
+                                                    // TODO(philip): Pull to it's own function.
+                                                    while (*Pointer && isspace(*Pointer))
+                                                    {
+                                                        ++Pointer;
+                                                    }
+
+                                                    char *XString = Pointer;
+
+                                                    // TODO(philip): Pull to it's own function.
+                                                    while (*Pointer && !isspace(*Pointer))
+                                                    {
+                                                        ++Pointer;
+                                                    }
+
+                                                    *Pointer = 0;
+                                                    ++Pointer;
+
+                                                    while (*Pointer && isspace(*Pointer))
+                                                    {
+                                                        ++Pointer;
+                                                    }
+
+                                                    char *YString = Pointer;
+
+                                                    while (*Pointer && !isspace(*Pointer))
+                                                    {
+                                                        ++Pointer;
+                                                    }
+
+                                                    *Pointer = 0;
+
+                                                    v2 *TextureCoordinate = TextureCoordinates +
+                                                        TextureCoordinateIndex++;
+
+                                                    TextureCoordinate->X = atof(XString);
+                                                    TextureCoordinate->Y = atof(YString);
+                                                } break;
+
+                                                case 'n':
+                                                {
+                                                    ++Pointer;
+
+                                                    // TODO(philip): Pull this out to a function.
+                                                    // TODO(philip): Do this in a loop.
+
+                                                    // TODO(philip): Replace isspace with custom function.
+                                                    // TODO(philip): Pull to it's own function.
+                                                    while (*Pointer && isspace(*Pointer))
+                                                    {
+                                                        ++Pointer;
+                                                    }
+
+                                                    char *XString = Pointer;
+
+                                                    // TODO(philip): Pull to it's own function.
+                                                    while (*Pointer && !isspace(*Pointer))
+                                                    {
+                                                        ++Pointer;
+                                                    }
+
+                                                    *Pointer = 0;
+                                                    ++Pointer;
+
+                                                    while (*Pointer && isspace(*Pointer))
+                                                    {
+                                                        ++Pointer;
+                                                    }
+
+                                                    char *YString = Pointer;
+
+                                                    while (*Pointer && !isspace(*Pointer))
+                                                    {
+                                                        ++Pointer;
+                                                    }
+
+                                                    *Pointer = 0;
+                                                    ++Pointer;
+
+                                                    while (*Pointer && isspace(*Pointer))
+                                                    {
+                                                        ++Pointer;
+                                                    }
+
+                                                    char *ZString = Pointer;
+
+                                                    while (*Pointer && !isspace(*Pointer))
+                                                    {
+                                                        ++Pointer;
+                                                    }
+
+                                                    *Pointer = 0;
+
+                                                    v3 *Normal = Normals + NormalIndex++;
+
+                                                    Normal->X = atof(XString);
+                                                    Normal->Y = atof(YString);
+                                                    Normal->Z = atof(ZString);
+                                                } break;
+
+                                                default:
+                                                {
+                                                    // TODO(philip): Pull this out to a function.
+                                                    // TODO(philip): Do this in a loop.
+
+                                                    // TODO(philip): Replace isspace with custom function.
+                                                    // TODO(philip): Pull to it's own function.
+                                                    while (*Pointer && isspace(*Pointer))
+                                                    {
+                                                        ++Pointer;
+                                                    }
+
+                                                    char *XString = Pointer;
+
+                                                    // TODO(philip): Pull to it's own function.
+                                                    while (*Pointer && !isspace(*Pointer))
+                                                    {
+                                                        ++Pointer;
+                                                    }
+
+                                                    *Pointer = 0;
+                                                    ++Pointer;
+
+                                                    while (*Pointer && isspace(*Pointer))
+                                                    {
+                                                        ++Pointer;
+                                                    }
+
+                                                    char *YString = Pointer;
+
+                                                    while (*Pointer && !isspace(*Pointer))
+                                                    {
+                                                        ++Pointer;
+                                                    }
+
+                                                    *Pointer = 0;
+                                                    ++Pointer;
+
+                                                    while (*Pointer && isspace(*Pointer))
+                                                    {
+                                                        ++Pointer;
+                                                    }
+
+                                                    char *ZString = Pointer;
+
+                                                    while (*Pointer && !isspace(*Pointer))
+                                                    {
+                                                        ++Pointer;
+                                                    }
+
+                                                    *Pointer = 0;
+
+                                                    v3 *Position = Positions + PositionIndex++;
+
+                                                    Position->X = atof(XString);
+                                                    Position->Y = atof(YString);
+                                                    Position->Z = atof(ZString);
+                                                } break;
+                                            }
+                                        } break;
+
+                                        case 'f':
+                                        {
+                                            ++Pointer;
+
+                                            for (u32 SetIndex = 0;
+                                                 SetIndex < 3;
+                                                 ++SetIndex)
+                                            {
+                                                // TODO(philip): Maybe turn this into a loop.
+
+                                                while (*Pointer && isspace(*Pointer))
+                                                {
+                                                    ++Pointer;
+                                                }
+
+                                                char *PositionString = Pointer;
+
+                                                while (*Pointer && (*Pointer != '/'))
+                                                {
+                                                    ++Pointer;
+                                                }
+
+                                                *Pointer = 0;
+                                                ++Pointer;
+
+                                                char *TextureCoordinateString = Pointer;
+
+                                                while (*Pointer && (*Pointer != '/'))
+                                                {
+                                                    ++Pointer;
+                                                }
+
+                                                *Pointer = 0;
+                                                ++Pointer;
+
+                                                char *NormalString = Pointer;
+
+                                                while (*Pointer && !isspace(*Pointer))
+                                                {
+                                                    ++Pointer;
+                                                }
+
+                                                *Pointer = 0;
+
+                                                if (SetIndex != 2)
+                                                {
+                                                    ++Pointer;
+                                                }
+
+                                                u64 Position = atoi(PositionString);
+                                                u64 TextureCoordinate = atoi(TextureCoordinateString);
+                                                u64 Normal = atoi(NormalString);
+
+                                                b32 Found = false;
+                                                u64 SetID = 0;
+
+                                                // TODO(philip): Replace this with a search into the hash table.
+                                                for (u64 Index = 0;
+                                                     Index < UniqueIndexSetCount;
+                                                     ++Index)
+                                                {
+                                                    index_set *Set = UniqueIndexSets + Index;
+                                                    if (Set->Position == Position &&
+                                                        Set->TextureCoordinate == TextureCoordinate &&
+                                                        Set->Normal == Normal)
+                                                    {
+                                                        Found = true;
+                                                        SetID = Index;
+
+                                                        break;
+                                                    }
+                                                }
+
+                                                if (!Found)
+                                                {
+                                                    SetID = UniqueIndexSetCount;
+
+                                                    index_set *Set = UniqueIndexSets + UniqueIndexSetCount++;
+                                                    Set->Position = Position;
+                                                    Set->TextureCoordinate = TextureCoordinate;
+                                                    Set->Normal = Normal;
+                                                }
+
+                                                MeshIndices[MeshIndexCount++] = SetID;
+                                            }
+                                        } break;
+
+                                        default:
+                                        {
+                                            while (*Pointer && (*Pointer != '\n'))
+                                            {
+                                                ++Pointer;
+                                            }
+                                        } break;
+                                    }
+
+                                    ++Pointer;
+                                }
+
+                                MeshVertexCount = UniqueIndexSetCount;
+                                MeshVertices = (vertex *)calloc(1, MeshVertexCount * sizeof(vertex));
+
+                                for (u64 Index = 0;
+                                     Index < UniqueIndexSetCount;
+                                     ++Index)
+                                {
+                                    index_set *Set = UniqueIndexSets + Index;
+                                    vertex *Vertex = MeshVertices + Index;
+
+                                    Vertex->Position = Positions[Set->Position - 1];
+                                    Vertex->TextureCoordinate = TextureCoordinates[Set->TextureCoordinate - 1];
+                                    Vertex->Normal = Normals[Set->Normal - 1];
+                                }
+
+                                // TODO(philip): Change to using the Win32 API.
+                                free(UniqueIndexSets);
+                                free(Normals);
+                                free(TextureCoordinates);
+                                free(Positions);
+
+                                OS_FreeFileMemory(&FileData);
+                            }
+                        }
+
+#if 0
                         GLfloat Vertices[] =
                         {
                             -0.5f, -0.5f, 0.0f,
@@ -414,25 +811,39 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                             0.5f, 0.5f, 0.0f,
                             -0.5f, 0.5f, 0.0f
                         };
+#endif
 
                         GLuint VertexBuffer;
                         glGenBuffers(1, &VertexBuffer);
                         glBindBuffer(GL_ARRAY_BUFFER, VertexBuffer);
-                        glBufferData(GL_ARRAY_BUFFER, 4 * 3 * sizeof(GLfloat), Vertices, GL_STATIC_DRAW);
+                        glBufferData(GL_ARRAY_BUFFER, MeshVertexCount * sizeof(vertex), MeshVertices,
+                                     GL_STATIC_DRAW);
 
                         glEnableVertexAttribArray(0);
-                        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
+                        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), 0);
 
+                        glEnableVertexAttribArray(1);
+                        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), (void *)(sizeof(v3)));
+
+                        glEnableVertexAttribArray(2);
+                        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void *)(sizeof(v3) + sizeof(v2)));
+
+#if 0
                         GLuint Indices[] =
                         {
                             0, 1, 2,
                             2, 3, 0
                         };
+#endif
 
                         GLuint IndexBuffer;
                         glGenBuffers(1, &IndexBuffer);
                         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffer);
-                        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(GLuint), Indices, GL_STATIC_DRAW);
+                        glBufferData(GL_ELEMENT_ARRAY_BUFFER, MeshIndexCount * sizeof(u32), MeshIndices,
+                                     GL_STATIC_DRAW);
+
+                        free(MeshVertices);
+                        free(MeshIndices);
 
                         GLint ViewProjectionUniformLocation = glGetUniformLocation(Program, "ViewProjection");
                         GLint TransformUniformLocation = glGetUniformLocation(Program, "Transform");
@@ -520,7 +931,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                                (GLfloat *)&ViewProjection);
                             glUniformMatrix4fv(TransformUniformLocation, 1, GL_FALSE, (GLfloat *)&Transform);
 
-                            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+                            glDrawElements(GL_TRIANGLES, MeshIndexCount, GL_UNSIGNED_INT, 0);
 
                             SwapBuffers(DeviceContext);
                         }

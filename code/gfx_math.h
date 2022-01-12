@@ -3,7 +3,13 @@
 
 #define PI (3.1415926535897932f)
 
-// TODO(philip): If we use this for more things, change into a union.
+// TODO(philip): Change these to unions. Store as array as well.
+struct v2
+{
+    f32 X;
+    f32 Y;
+};
+
 struct v3
 {
     f32 X;
