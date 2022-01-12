@@ -433,22 +433,18 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffer);
                         glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(GLuint), Indices, GL_STATIC_DRAW);
 
-                        GLint ProjectionUniformLocation = glGetUniformLocation(Program, "Projection");
+                        GLint ViewProjectionUniformLocation = glGetUniformLocation(Program, "ViewProjection");
                         GLint TransformUniformLocation = glGetUniformLocation(Program, "Transform");
 
                         glUseProgram(Program);
-                        glClearColor(0.2f, 0.5f, 0.2f, 1.0f);
 
                         // TODO(philip): Use the actual render area size.
                         m4 Projection = Perspective((16.0f / 9.0f), ToRadians(45.0f), 0.01f, 10000.0f);
-                        m4 Transform =  Scale(V3(0.5f, 0.5f, 0.5f)) *
-                                        ToM4(AxisAngleRotate(V3(0.0f, 0.0f, 1.0f), ToRadians(45.0f))) *
-                                        Translate(V3(0.4f, 0.3f, -2.0f));
-
-                        glUniformMatrix4fv(ProjectionUniformLocation, 1, GL_FALSE, (GLfloat *)&Projection);
-                        glUniformMatrix4fv(TransformUniformLocation, 1, GL_FALSE, (GLfloat *)&Transform);
 
                         ShowWindow(Window, SW_SHOW);
+
+                        f32 CameraMovementSpeed = 0.025f;
+                        v3 CameraPosition = V3(0.0f, 0.0f, 2.0f);
 
                         for (;;)
                         {
@@ -472,7 +468,57 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 break;
                             }
 
+                            // TODO(philip): Should the forward and right camera movement vectors be the same
+                            // as the rotation ones, or the world ones.
+
+                            if (GetKeyState(0x57) & 0x8000)
+                            {
+                                // NOTE(philip): W key is pressed.
+
+                                // TODO(philip): Integrate time.
+                                CameraPosition.Z -= CameraMovementSpeed;
+                            }
+
+                            if (GetKeyState(0x53) & 0x8000)
+                            {
+                                // NOTE(philip): S key is pressed.
+
+                                // TODO(philip): Integrate time.
+                                CameraPosition.Z += CameraMovementSpeed;
+                            }
+
+                            if (GetKeyState(0x41) & 0x8000)
+                            {
+                                // NOTE(philip): A key is pressed.
+
+                                // TODO(philip): Integrate time.
+                                CameraPosition.X -= CameraMovementSpeed;
+                            }
+
+                            if (GetKeyState(0x44) & 0x8000)
+                            {
+                                // NOTE(philip): D key is pressed.
+
+                                // TODO(philip): Integrate time.
+                                CameraPosition.X += CameraMovementSpeed;
+                            }
+
+                            m4 Transform = Scale(V3(0.5f, 0.5f, 0.5f)) *
+                                ToM4(AxisAngleRotate(V3(0.0f, 0.0f, 1.0f), ToRadians(45.0f))) *
+                                Translate(V3(0.0f, 0.0f, 0.0f));
+
+                            // TODO(philip): Overload the negative operator for v3.
+                            m4 View = Translate(V3(-CameraPosition.X, -CameraPosition.Y, -CameraPosition.Z));
+
+                            // TODO(philip): Why does this work?
+                            m4 ViewProjection = View * Projection;
+
                             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+                            glUniformMatrix4fv(ViewProjectionUniformLocation, 1, GL_FALSE,
+                                               (GLfloat *)&ViewProjection);
+                            glUniformMatrix4fv(TransformUniformLocation, 1, GL_FALSE, (GLfloat *)&Transform);
+
                             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
                             SwapBuffers(DeviceContext);
