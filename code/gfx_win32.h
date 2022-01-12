@@ -30,7 +30,7 @@
 typedef BOOL wgl_choose_pixel_format_arb(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList,
                                          UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
 
-static wgl_choose_pixel_format_arb *wglChoosePixelFormatARB = 0;
+global wgl_choose_pixel_format_arb *wglChoosePixelFormatARB = 0;
 
 // NOTE(philip): https://www.khronos.org/registry/OpenGL/extensions/ARB/WGL_ARB_create_context.txt
 
@@ -45,12 +45,12 @@ static wgl_choose_pixel_format_arb *wglChoosePixelFormatARB = 0;
 
 typedef HGLRC wgl_create_context_attribs_arb(HDC hDC, HGLRC hShareContext, const int *attribList);
 
-static wgl_create_context_attribs_arb *wglCreateContextAttribsARB = 0;
+global wgl_create_context_attribs_arb *wglCreateContextAttribsARB = 0;
 
 // NOTE(philip): https://www.khronos.org/registry/OpenGL/extensions/EXT/WGL_EXT_swap_control.txt
 
 typedef BOOL wgl_swap_interval_ext(int interval);
 
-static wgl_swap_interval_ext *wglSwapIntervalEXT = 0;
+global wgl_swap_interval_ext *wglSwapIntervalEXT = 0;
 
 #endif

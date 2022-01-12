@@ -5,7 +5,7 @@
 // NOTE(philip): File IO
 //
 
-static b32 OS_ReadEntireFile(char *Path, buffer *Buffer);
-static void OS_FreeFileMemory(buffer *Buffer);
+function b32 OS_ReadEntireFile(char *Path, buffer *Buffer);
+function void OS_FreeFileMemory(buffer *Buffer);
 
 #endif

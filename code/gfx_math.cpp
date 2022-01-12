@@ -2,35 +2,35 @@
 // NOTE(philip): Base Functions
 //
 
-static f32
+function f32
 Sin(f32 Value)
 {
     f32 Result = sinf(Value);
     return Result;
 }
 
-static f32
+function f32
 Cos(f32 Value)
 {
     f32 Result = cosf(Value);
     return Result;
 }
 
-static f32
+function f32
 Tan(f32 Value)
 {
     f32 Result = tanf(Value);
     return Result;
 }
 
-static f32
+function f32
 SquareRoot(f32 Value)
 {
     f32 Result = sqrtf(Value);
     return Result;
 }
 
-static f32
+function f32
 ToRadians(f32 Value)
 {
     f32 Result = (Value * (PI / 180.0f));
@@ -41,7 +41,7 @@ ToRadians(f32 Value)
 // NOTE(philip): 3-Component Vector
 //
 
-static v3
+function v3
 V3(float X, float Y, float Z)
 {
     v3 Result = { };
@@ -53,14 +53,14 @@ V3(float X, float Y, float Z)
     return Result;
 }
 
-static f32
+function f32
 Length(v3 Vector)
 {
     f32 Result = SquareRoot((Vector.X * Vector.X) + (Vector.Y * Vector.Y) + (Vector.Z * Vector.Z));
     return Result;
 }
 
-static v3
+function v3
 Normalize(v3 Vector)
 {
     v3 Result = { };
@@ -77,7 +77,7 @@ Normalize(v3 Vector)
 // NOTE(philip): Quaternion
 //
 
-static quat
+function quat
 AxisAngleRotate(v3 Axis, f32 Angle)
 {
     quat Result = { };
@@ -100,7 +100,7 @@ AxisAngleRotate(v3 Axis, f32 Angle)
 // NOTE(philip): 4x4 Matrix
 //
 
-static m4
+function m4
 M4(f32 Diagonal = 0.0f)
 {
     m4 Result = { };
@@ -113,7 +113,7 @@ M4(f32 Diagonal = 0.0f)
     return Result;
 }
 
-static m4
+function m4
 Perspective(f32 AspectRatio, f32 VerticalFOV, f32 NearPlane, f32 FarPlane)
 {
     m4 Result = { };
@@ -131,7 +131,7 @@ Perspective(f32 AspectRatio, f32 VerticalFOV, f32 NearPlane, f32 FarPlane)
     return Result;
 }
 
-static m4
+function m4
 Translate(v3 Translation)
 {
     m4 Result = M4(1.0f);
@@ -143,7 +143,7 @@ Translate(v3 Translation)
     return Result;
 }
 
-static m4
+function m4
 Scale(v3 Scale)
 {
     m4 Result = M4(1.0f);
@@ -155,7 +155,7 @@ Scale(v3 Scale)
     return Result;
 }
 
-static m4
+function m4
 operator*(m4& Left, m4& Right)
 {
     m4 Result = { };
@@ -181,7 +181,7 @@ operator*(m4& Left, m4& Right)
     return Result;
 }
 
-static m4
+function m4
 ToM4(quat Quaternion)
 {
     m4 Result = { };

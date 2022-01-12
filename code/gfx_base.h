@@ -1,11 +1,16 @@
 #ifndef GFX_BASE_H
 #define GFX_BASE_H
 
+// TODO(philip): Platform and compiler detection.
+// TODO(philip): Configuration setup.
+
 //
 // NOTE(philip): Base Keywords
 //
 
-// TODO(philip): Redefine static.
+#define function               static
+#define global                 static
+#define local_persistant       static
 
 //
 // NOTE(philip): Base Types
@@ -28,7 +33,13 @@ typedef double                 f64;
 
 // TODO(philip): Ensure proper size for base types during compile time.
 
-// TODO(philip): Assert macro.
+//
+// NOTE(philip): Assert Macro
+//
+
+// TODO(philip): Only enable this on debug builds.
+#define Assert(Condition) if (!(Condition)) { *(u64 *)0 = 0; }
+
 // TODO(philip): Array count macro.
 
 struct buffer

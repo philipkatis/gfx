@@ -23,10 +23,10 @@ typedef void gl_bind_buffer(GLenum target, GLuint buffer);
 typedef void gl_buffer_data(GLenum target, GLsizeiptr size, const void *data, GLenum usage);
 typedef void gl_delete_buffers(GLsizei n, const GLuint *buffers);
 
-static gl_gen_buffers *glGenBuffers = 0;
-static gl_bind_buffer *glBindBuffer = 0;
-static gl_buffer_data *glBufferData = 0;
-static gl_delete_buffers *glDeleteBuffers = 0;
+global gl_gen_buffers *glGenBuffers = 0;
+global gl_bind_buffer *glBindBuffer = 0;
+global gl_buffer_data *glBufferData = 0;
+global gl_delete_buffers *glDeleteBuffers = 0;
 
 // NOTE(philip): OpenGL 2.0
 
@@ -60,24 +60,24 @@ typedef void gl_enable_vertex_attrib_array(GLuint index);
 typedef void gl_vertex_attrib_pointer(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride,
                                       const void *pointer);
 
-static gl_create_shader *glCreateShader = 0;
-static gl_shader_source *glShaderSource = 0;
-static gl_compile_shader *glCompileShader = 0;
-static gl_get_shader_iv *glGetShaderiv = 0;
-static gl_get_shader_info_log *glGetShaderInfoLog = 0;
-static gl_delete_shader *glDeleteShader = 0;
-static gl_create_program *glCreateProgram = 0;
-static gl_attach_shader *glAttachShader = 0;
-static gl_link_program *glLinkProgram = 0;
-static gl_validate_program *glValidateProgram = 0;
-static gl_get_program_iv *glGetProgramiv = 0;
-static gl_get_program_info_log *glGetProgramInfoLog = 0;
-static gl_get_uniform_location *glGetUniformLocation = 0;
-static gl_use_program *glUseProgram = 0;
-static gl_uniform_matrix_4fv *glUniformMatrix4fv = 0;
-static gl_delete_program *glDeleteProgram = 0;
-static gl_enable_vertex_attrib_array *glEnableVertexAttribArray = 0;
-static gl_vertex_attrib_pointer *glVertexAttribPointer = 0;
+global gl_create_shader *glCreateShader = 0;
+global gl_shader_source *glShaderSource = 0;
+global gl_compile_shader *glCompileShader = 0;
+global gl_get_shader_iv *glGetShaderiv = 0;
+global gl_get_shader_info_log *glGetShaderInfoLog = 0;
+global gl_delete_shader *glDeleteShader = 0;
+global gl_create_program *glCreateProgram = 0;
+global gl_attach_shader *glAttachShader = 0;
+global gl_link_program *glLinkProgram = 0;
+global gl_validate_program *glValidateProgram = 0;
+global gl_get_program_iv *glGetProgramiv = 0;
+global gl_get_program_info_log *glGetProgramInfoLog = 0;
+global gl_get_uniform_location *glGetUniformLocation = 0;
+global gl_use_program *glUseProgram = 0;
+global gl_uniform_matrix_4fv *glUniformMatrix4fv = 0;
+global gl_delete_program *glDeleteProgram = 0;
+global gl_enable_vertex_attrib_array *glEnableVertexAttribArray = 0;
+global gl_vertex_attrib_pointer *glVertexAttribPointer = 0;
 
 // NOTE(philip): OpenGL 3.0
 
@@ -85,8 +85,8 @@ typedef void gl_gen_vertex_arrays(GLsizei n, GLuint *arrays);
 typedef void gl_bind_vertex_array(GLuint array);
 typedef void gl_delete_vertex_arrays(GLsizei n, const GLuint *arrays);
 
-static gl_gen_vertex_arrays *glGenVertexArrays = 0;
-static gl_bind_vertex_array *glBindVertexArray = 0;
-static gl_delete_vertex_arrays *glDeleteVertexArrays = 0;
+global gl_gen_vertex_arrays *glGenVertexArrays = 0;
+global gl_bind_vertex_array *glBindVertexArray = 0;
+global gl_delete_vertex_arrays *glDeleteVertexArrays = 0;
 
 #endif

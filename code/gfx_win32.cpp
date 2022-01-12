@@ -11,10 +11,10 @@
 
 #include "gfx_math.cpp"
 
-static b32
+function b32
 OS_ReadEntireFile(char *Path, buffer *Buffer)
 {
-    // TODO(philip): Assert that the buffer is valid.
+    Assert(Buffer);
 
     b32 Result = false;
 
@@ -43,10 +43,10 @@ OS_ReadEntireFile(char *Path, buffer *Buffer)
     return Result;
 }
 
-static void
+function void
 OS_FreeFileMemory(buffer *Buffer)
 {
-    // TODO(philip): Assert that the buffer is valid.
+    Assert(Buffer);
 
     if (Buffer->Data)
     {
@@ -58,7 +58,7 @@ OS_FreeFileMemory(buffer *Buffer)
     Buffer->Size = 0;
 }
 
-static LRESULT
+function LRESULT
 Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
 {
     LRESULT Result = 0;
@@ -88,7 +88,7 @@ Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
 
 // TODO(philip): Documentation.
 // TODO(philip): Maybe return success or failure.
-static void
+function void
 Win32LoadWLGExtensions(HINSTANCE Instance)
 {
     LPCSTR WindowClassName = "gfx_dummy_win32_window_class";
@@ -169,46 +169,47 @@ Win32LoadWLGExtensions(HINSTANCE Instance)
     UnregisterClassA(WindowClassName, Instance);
 }
 
-static void
+#define Load(Type, Name) Name = (Type *)wglGetProcAddress(#Name)
+
+function void
 Win32LoadGLFunctions(void)
 {
-    // TODO(philip): Investigate what we should do if loading one of these fails.
-    // TODO(philip): Maybe make a macro to load these more easily.
-
     // NOTE(philip): OpenGL 1.5
 
-    glGenBuffers = (gl_gen_buffers *)wglGetProcAddress("glGenBuffers");
-    glBindBuffer = (gl_bind_buffer *)wglGetProcAddress("glBindBuffer");
-    glBufferData = (gl_buffer_data *)wglGetProcAddress("glBufferData");
-    glDeleteBuffers = (gl_delete_buffers *)wglGetProcAddress("glDeleteBuffers");
+    Load(gl_gen_buffers,                    glGenBuffers);
+    Load(gl_bind_buffer,                    glBindBuffer);
+    Load(gl_buffer_data,                    glBufferData);
+    Load(gl_delete_buffers,                 glDeleteBuffers);
 
     // NOTE(philip): OpenGL 2.0
 
-    glCreateShader = (gl_create_shader *)wglGetProcAddress("glCreateShader");
-    glShaderSource = (gl_shader_source *)wglGetProcAddress("glShaderSource");
-    glCompileShader = (gl_compile_shader *)wglGetProcAddress("glCompileShader");
-    glGetShaderiv = (gl_get_shader_iv *)wglGetProcAddress("glGetShaderiv");
-    glGetShaderInfoLog = (gl_get_shader_info_log *)wglGetProcAddress("glGetShaderInfoLog");
-    glDeleteShader = (gl_delete_shader *)wglGetProcAddress("glDeleteShader");
-    glCreateProgram = (gl_create_program *)wglGetProcAddress("glCreateProgram");
-    glAttachShader = (gl_attach_shader *)wglGetProcAddress("glAttachShader");
-    glLinkProgram = (gl_link_program *)wglGetProcAddress("glLinkProgram");
-    glValidateProgram = (gl_validate_program *)wglGetProcAddress("glValidateProgram");
-    glGetProgramiv = (gl_get_program_iv *)wglGetProcAddress("glGetProgramiv");
-    glGetProgramInfoLog = (gl_get_program_info_log *)wglGetProcAddress("glGetShaderInfoLog");
-    glGetUniformLocation = (gl_get_uniform_location *)wglGetProcAddress("glGetUniformLocation");
-    glUseProgram = (gl_use_program *)wglGetProcAddress("glUseProgram");
-    glUniformMatrix4fv = (gl_uniform_matrix_4fv *)wglGetProcAddress("glUniformMatrix4fv");
-    glDeleteProgram = (gl_delete_program *)wglGetProcAddress("glDeleteProgram");
-    glEnableVertexAttribArray = (gl_enable_vertex_attrib_array *)wglGetProcAddress("glEnableVertexAttribArray");
-    glVertexAttribPointer = (gl_vertex_attrib_pointer *)wglGetProcAddress("glVertexAttribPointer");
+    Load(gl_create_shader,                  glCreateShader);
+    Load(gl_shader_source,                  glShaderSource);
+    Load(gl_compile_shader,                 glCompileShader);
+    Load(gl_get_shader_iv,                  glGetShaderiv);
+    Load(gl_get_shader_info_log,            glGetShaderInfoLog);
+    Load(gl_delete_shader,                  glDeleteShader);
+    Load(gl_create_program,                 glCreateProgram);
+    Load(gl_attach_shader,                  glAttachShader);
+    Load(gl_link_program,                   glLinkProgram);
+    Load(gl_validate_program,               glValidateProgram);
+    Load(gl_get_program_iv,                 glGetProgramiv);
+    Load(gl_get_program_info_log,           glGetProgramInfoLog);
+    Load(gl_get_uniform_location,           glGetUniformLocation);
+    Load(gl_use_program,                    glUseProgram);
+    Load(gl_uniform_matrix_4fv,             glUniformMatrix4fv);
+    Load(gl_delete_program,                 glDeleteProgram);
+    Load(gl_enable_vertex_attrib_array,     glEnableVertexAttribArray);
+    Load(gl_vertex_attrib_pointer,          glVertexAttribPointer);
 
     // NOTE(philip): OpenGL 3.0
 
-    glGenVertexArrays = (gl_gen_vertex_arrays *)wglGetProcAddress("glGenVertexArrays");
-    glBindVertexArray = (gl_bind_vertex_array *)wglGetProcAddress("glBindVertexArray");
-    glDeleteVertexArrays = (gl_delete_vertex_arrays *)wglGetProcAddress("glDeleteVertexArrays");
+    Load(gl_gen_vertex_arrays,              glGenVertexArrays);
+    Load(gl_bind_vertex_array,              glBindVertexArray);
+    Load(gl_delete_vertex_arrays,           glDeleteVertexArrays);
 }
+
+#undef Load
 
 s32
 WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 ShowCMD)
@@ -298,7 +299,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 GLint Length;
                                 glGetShaderiv(VertexShaderModule, GL_INFO_LOG_LENGTH, &Length);
 
-                                // TODO(philip): Assert that the length is within bounds.
+                                Assert(Length < 4096);
 
                                 GLchar InfoLog[4096];
                                 glGetShaderInfoLog(VertexShaderModule, 4096, &Length, InfoLog);
@@ -332,7 +333,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 GLint Length;
                                 glGetShaderiv(PixelShaderModule, GL_INFO_LOG_LENGTH, &Length);
 
-                                // TODO(philip): Assert that the length is within bounds.
+                                Assert(Length < 4096);
 
                                 GLchar InfoLog[4096];
                                 glGetShaderInfoLog(PixelShaderModule, 4096, &Length, InfoLog);
@@ -363,7 +364,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                             GLint Length;
                             glGetProgramiv(Program, GL_INFO_LOG_LENGTH, &Length);
 
-                            // TODO(philip): Assert that the length is within bounds.
+                            Assert(Length < 4096);
 
                             GLchar InfoLog[4096];
                             glGetProgramInfoLog(Program, 4096, &Length, InfoLog);
@@ -386,7 +387,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                             GLint Length;
                             glGetProgramiv(Program, GL_INFO_LOG_LENGTH, &Length);
 
-                            // TODO(philip): Assert that the length is within bounds.
+                            Assert(Length < 4096);
 
                             GLchar InfoLog[4096];
                             glGetProgramInfoLog(Program, 4096, &Length, InfoLog);
