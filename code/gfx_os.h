@@ -2,6 +2,13 @@
 #define GFX_OS_H
 
 //
+// NOTE(philip): Memory
+//
+
+function void *OS_AllocateMemory(u64 Size);
+function void OS_FreeMemory(void *Memory);
+
+//
 // NOTE(philip): File IO
 //
 

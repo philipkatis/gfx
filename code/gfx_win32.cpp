@@ -9,7 +9,34 @@
 #include "gfx_win32.h"
 #include "gfx_gl.h"
 
+#include "gfx_base.cpp"
 #include "gfx_math.cpp"
+
+//
+// NOTE(philip): Memory
+//
+
+function void *
+OS_AllocateMemory(u64 Size)
+{
+    // TODO(philip): Change to using the Win32 API.
+    void *Memory = calloc(1, Size);
+    return Memory;
+}
+
+function void
+OS_FreeMemory(void *Memory)
+{
+    if (Memory)
+    {
+        // TODO(philip): Change to using the Win32 API.
+        free(Memory);
+    }
+}
+
+//
+// NOTE(philip): File IO
+//
 
 function b32
 OS_ReadEntireFile(char *Path, buffer *Buffer)
@@ -23,8 +50,7 @@ OS_ReadEntireFile(char *Path, buffer *Buffer)
     {
         if (GetFileSizeEx(File, (LARGE_INTEGER *)&Buffer->Size))
         {
-            // TODO(philip): Change to using the Win32 API.
-            Buffer->Data = calloc(1, Buffer->Size);
+            Buffer->Data = OS_AllocateMemory(Buffer->Size);
 
             DWORD BytesRead;
             if (ReadFile(File, Buffer->Data, Buffer->Size, &BytesRead, 0) && (BytesRead == Buffer->Size))
@@ -48,11 +74,7 @@ OS_FreeFileMemory(buffer *Buffer)
 {
     Assert(Buffer);
 
-    if (Buffer->Data)
-    {
-        // TODO(philip): Change to using the Win32 API.
-        free(Buffer->Data);
-    }
+    OS_FreeMemory(Buffer->Data);
 
     Buffer->Data = 0;
     Buffer->Size = 0;
@@ -475,26 +497,20 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                             } break;
                                         }
 
-                                        // TODO(philip): Pull to it's own function.
-                                        while (*Pointer && (*Pointer != '\n'))
-                                        {
-                                            ++Pointer;
-                                        }
-
+                                        Pointer = SkipLine(Pointer);
                                         ++Pointer;
                                     }
                                 }
 
-                                // TODO(philip): Change to using the Win32 API.
-                                v3 *Positions = (v3 *)calloc(1, PositionCount * sizeof(v3));
-                                v2 *TextureCoordinates = (v2 *)calloc(1, TextureCoordinateCount * sizeof(v2));
-                                v3 *Normals = (v3 *)calloc(1, NormalCount * sizeof(v3));
+                                v3 *Positions = (v3 *)OS_AllocateMemory(PositionCount * sizeof(v3));
+                                v2 *TextureCoordinates = (v2 *)OS_AllocateMemory(TextureCoordinateCount * sizeof(v2));
+                                v3 *Normals = (v3 *)OS_AllocateMemory(NormalCount * sizeof(v3));
 
                                 // TODO(philip): Change this into a hash table.
-                                index_set *UniqueIndexSets = (index_set *)calloc(1, TriangleCount * 3 * sizeof(index_set));
+                                index_set *UniqueIndexSets = (index_set *)OS_AllocateMemory(TriangleCount * 3 * sizeof(index_set));
                                 u64 UniqueIndexSetCount = 0;
 
-                                MeshIndices = (u32 *)calloc(1, TriangleCount * 3 * sizeof(u32));
+                                MeshIndices = (u32 *)OS_AllocateMemory(TriangleCount * 3 * sizeof(u32));
 
                                 u64 PositionIndex = 0;
                                 u64 TextureCoordinateIndex = 0;
@@ -513,41 +529,19 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                             {
                                                 case 't':
                                                 {
-                                                    ++Pointer;
-
                                                     // TODO(philip): Pull this out to a function.
                                                     // TODO(philip): Do this in a loop.
 
-                                                    // TODO(philip): Replace isspace with custom function.
-                                                    // TODO(philip): Pull to it's own function.
-                                                    while (*Pointer && isspace(*Pointer))
-                                                    {
-                                                        ++Pointer;
-                                                    }
-
+                                                    Pointer = SkipWhitespace(++Pointer);
                                                     char *XString = Pointer;
 
-                                                    // TODO(philip): Pull to it's own function.
-                                                    while (*Pointer && !isspace(*Pointer))
-                                                    {
-                                                        ++Pointer;
-                                                    }
-
+                                                    Pointer = SkipUntilWhitespace(Pointer);
                                                     *Pointer = 0;
-                                                    ++Pointer;
 
-                                                    while (*Pointer && isspace(*Pointer))
-                                                    {
-                                                        ++Pointer;
-                                                    }
-
+                                                    Pointer = SkipWhitespace(++Pointer);
                                                     char *YString = Pointer;
 
-                                                    while (*Pointer && !isspace(*Pointer))
-                                                    {
-                                                        ++Pointer;
-                                                    }
-
+                                                    Pointer = SkipUntilWhitespace(Pointer);
                                                     *Pointer = 0;
 
                                                     v2 *TextureCoordinate = TextureCoordinates +
@@ -559,56 +553,25 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                                                 case 'n':
                                                 {
-                                                    ++Pointer;
-
                                                     // TODO(philip): Pull this out to a function.
                                                     // TODO(philip): Do this in a loop.
 
-                                                    // TODO(philip): Replace isspace with custom function.
-                                                    // TODO(philip): Pull to it's own function.
-                                                    while (*Pointer && isspace(*Pointer))
-                                                    {
-                                                        ++Pointer;
-                                                    }
-
+                                                    Pointer = SkipWhitespace(++Pointer);
                                                     char *XString = Pointer;
 
-                                                    // TODO(philip): Pull to it's own function.
-                                                    while (*Pointer && !isspace(*Pointer))
-                                                    {
-                                                        ++Pointer;
-                                                    }
-
+                                                    Pointer = SkipUntilWhitespace(Pointer);
                                                     *Pointer = 0;
-                                                    ++Pointer;
 
-                                                    while (*Pointer && isspace(*Pointer))
-                                                    {
-                                                        ++Pointer;
-                                                    }
-
+                                                    Pointer = SkipWhitespace(++Pointer);
                                                     char *YString = Pointer;
 
-                                                    while (*Pointer && !isspace(*Pointer))
-                                                    {
-                                                        ++Pointer;
-                                                    }
-
+                                                    Pointer = SkipUntilWhitespace(Pointer);
                                                     *Pointer = 0;
-                                                    ++Pointer;
 
-                                                    while (*Pointer && isspace(*Pointer))
-                                                    {
-                                                        ++Pointer;
-                                                    }
-
+                                                    Pointer = SkipWhitespace(++Pointer);
                                                     char *ZString = Pointer;
 
-                                                    while (*Pointer && !isspace(*Pointer))
-                                                    {
-                                                        ++Pointer;
-                                                    }
-
+                                                    Pointer = SkipUntilWhitespace(Pointer);
                                                     *Pointer = 0;
 
                                                     v3 *Normal = Normals + NormalIndex++;
@@ -623,51 +586,22 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                                     // TODO(philip): Pull this out to a function.
                                                     // TODO(philip): Do this in a loop.
 
-                                                    // TODO(philip): Replace isspace with custom function.
-                                                    // TODO(philip): Pull to it's own function.
-                                                    while (*Pointer && isspace(*Pointer))
-                                                    {
-                                                        ++Pointer;
-                                                    }
-
+                                                    Pointer = SkipWhitespace(Pointer);
                                                     char *XString = Pointer;
 
-                                                    // TODO(philip): Pull to it's own function.
-                                                    while (*Pointer && !isspace(*Pointer))
-                                                    {
-                                                        ++Pointer;
-                                                    }
-
+                                                    Pointer = SkipUntilWhitespace(Pointer);
                                                     *Pointer = 0;
-                                                    ++Pointer;
 
-                                                    while (*Pointer && isspace(*Pointer))
-                                                    {
-                                                        ++Pointer;
-                                                    }
-
+                                                    Pointer = SkipWhitespace(++Pointer);
                                                     char *YString = Pointer;
 
-                                                    while (*Pointer && !isspace(*Pointer))
-                                                    {
-                                                        ++Pointer;
-                                                    }
-
+                                                    Pointer = SkipUntilWhitespace(Pointer);
                                                     *Pointer = 0;
-                                                    ++Pointer;
 
-                                                    while (*Pointer && isspace(*Pointer))
-                                                    {
-                                                        ++Pointer;
-                                                    }
-
+                                                    Pointer = SkipWhitespace(++Pointer);
                                                     char *ZString = Pointer;
 
-                                                    while (*Pointer && !isspace(*Pointer))
-                                                    {
-                                                        ++Pointer;
-                                                    }
-
+                                                    Pointer = SkipUntilWhitespace(Pointer);
                                                     *Pointer = 0;
 
                                                     v3 *Position = Positions + PositionIndex++;
@@ -681,52 +615,27 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                                         case 'f':
                                         {
-                                            ++Pointer;
-
                                             for (u32 SetIndex = 0;
                                                  SetIndex < 3;
                                                  ++SetIndex)
                                             {
                                                 // TODO(philip): Maybe turn this into a loop.
 
-                                                while (*Pointer && isspace(*Pointer))
-                                                {
-                                                    ++Pointer;
-                                                }
-
+                                                Pointer = SkipWhitespace(++Pointer);
                                                 char *PositionString = Pointer;
 
-                                                while (*Pointer && (*Pointer != '/'))
-                                                {
-                                                    ++Pointer;
-                                                }
-
-                                                *Pointer = 0;
-                                                ++Pointer;
-
-                                                char *TextureCoordinateString = Pointer;
-
-                                                while (*Pointer && (*Pointer != '/'))
-                                                {
-                                                    ++Pointer;
-                                                }
-
-                                                *Pointer = 0;
-                                                ++Pointer;
-
-                                                char *NormalString = Pointer;
-
-                                                while (*Pointer && !isspace(*Pointer))
-                                                {
-                                                    ++Pointer;
-                                                }
-
+                                                Pointer = SkipUntil(Pointer, '/');
                                                 *Pointer = 0;
 
-                                                if (SetIndex != 2)
-                                                {
-                                                    ++Pointer;
-                                                }
+                                                char *TextureCoordinateString = ++Pointer;
+
+                                                Pointer = SkipUntil(Pointer, '/');
+                                                *Pointer = 0;
+
+                                                char *NormalString = ++Pointer;
+
+                                                Pointer = SkipUntilWhitespace(Pointer);
+                                                *Pointer = 0;
 
                                                 u64 Position = atoi(PositionString);
                                                 u64 TextureCoordinate = atoi(TextureCoordinateString);
@@ -768,10 +677,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                                         default:
                                         {
-                                            while (*Pointer && (*Pointer != '\n'))
-                                            {
-                                                ++Pointer;
-                                            }
+                                            Pointer = SkipLine(Pointer);
                                         } break;
                                     }
 
@@ -779,7 +685,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 }
 
                                 MeshVertexCount = UniqueIndexSetCount;
-                                MeshVertices = (vertex *)calloc(1, MeshVertexCount * sizeof(vertex));
+                                MeshVertices = (vertex *)OS_AllocateMemory(MeshVertexCount * sizeof(vertex));
 
                                 for (u64 Index = 0;
                                      Index < UniqueIndexSetCount;
@@ -793,25 +699,14 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                     Vertex->Normal = Normals[Set->Normal - 1];
                                 }
 
-                                // TODO(philip): Change to using the Win32 API.
-                                free(UniqueIndexSets);
-                                free(Normals);
-                                free(TextureCoordinates);
-                                free(Positions);
+                                OS_FreeMemory(UniqueIndexSets);
+                                OS_FreeMemory(Normals);
+                                OS_FreeMemory(TextureCoordinates);
+                                OS_FreeMemory(Positions);
 
                                 OS_FreeFileMemory(&FileData);
                             }
                         }
-
-#if 0
-                        GLfloat Vertices[] =
-                        {
-                            -0.5f, -0.5f, 0.0f,
-                            0.5f, -0.5f, 0.0f,
-                            0.5f, 0.5f, 0.0f,
-                            -0.5f, 0.5f, 0.0f
-                        };
-#endif
 
                         GLuint VertexBuffer;
                         glGenBuffers(1, &VertexBuffer);
@@ -828,22 +723,14 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         glEnableVertexAttribArray(2);
                         glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void *)(sizeof(v3) + sizeof(v2)));
 
-#if 0
-                        GLuint Indices[] =
-                        {
-                            0, 1, 2,
-                            2, 3, 0
-                        };
-#endif
-
                         GLuint IndexBuffer;
                         glGenBuffers(1, &IndexBuffer);
                         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffer);
                         glBufferData(GL_ELEMENT_ARRAY_BUFFER, MeshIndexCount * sizeof(u32), MeshIndices,
                                      GL_STATIC_DRAW);
 
-                        free(MeshVertices);
-                        free(MeshIndices);
+                        OS_FreeMemory(MeshVertices);
+                        OS_FreeMemory(MeshIndices);
 
                         GLint ViewProjectionUniformLocation = glGetUniformLocation(Program, "ViewProjection");
                         GLint TransformUniformLocation = glGetUniformLocation(Program, "Transform");
@@ -856,7 +743,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         ShowWindow(Window, SW_SHOW);
 
                         f32 CameraMovementSpeed = 0.025f;
-                        v3 CameraPosition = V3(0.0f, 0.0f, 2.0f);
+                        v3 CameraPosition = V3(0.0f, 0.0f, 20.0f);
 
                         for (;;)
                         {
@@ -915,8 +802,8 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 CameraPosition.X += CameraMovementSpeed;
                             }
 
-                            m4 Transform = Scale(V3(0.5f, 0.5f, 0.5f)) *
-                                ToM4(AxisAngleRotate(V3(0.0f, 0.0f, 1.0f), ToRadians(45.0f))) *
+                            m4 Transform = Scale(V3(0.05f, 0.05f, 0.05f)) *
+                                ToM4(AxisAngleRotate(V3(0.0f, 0.0f, 1.0f), ToRadians(0.0f))) *
                                 Translate(V3(0.0f, 0.0f, 0.0f));
 
                             // TODO(philip): Overload the negative operator for v3.
