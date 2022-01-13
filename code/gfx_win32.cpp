@@ -417,6 +417,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         f32 CameraVerticalSensitivity = 0.01f;
                         f32 CameraHorizontalSensitivity = 0.01f;
 
+                        v3 CameraForward = V3(0.0f, 0.0f, -1.0f);
                         f32 CameraPitch = 0.0f;
                         f32 CameraYaw = -45.0f;
 
@@ -467,6 +468,23 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                             SetCursorPos(ClientAreaCenter.x, ClientAreaCenter.y);
 
+                            // TODO(philip): Integrate time.
+                            // TODO(philip): Clamp these.
+                            CameraPitch += CursorPositionDeltaY * CameraVerticalSensitivity;
+                            CameraYaw -= CursorPositionDeltaX * CameraHorizontalSensitivity;
+
+                            v3 CameraRight = Normalize(Cross(CameraForward, V3(0.0f, 1.0f, 0.0f)));
+
+                            quat CameraRotation = AxisAngleRotation(CameraRight, ToRadians(CameraPitch)) *
+                                AxisAngleRotation(V3(0.0f, 1.0f, 0.0f), ToRadians(CameraYaw));
+
+                            CameraForward = Normalize(RotateV3(V3(0.0f, 0.0f, -1.0f), CameraRotation));
+
+                            char Buffer[1024];
+                            sprintf(Buffer, "X: %f, Y: %f, Z: %f\n", CameraRight.X, CameraRight.Y,
+                                    CameraRight.Z);
+                            OutputDebugStringA(Buffer);
+
                             // TODO(philip): Should the forward and right camera movement vectors be the same
                             // as the rotation ones, or the world ones.
 
@@ -475,7 +493,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 // NOTE(philip): W key is pressed.
 
                                 // TODO(philip): Integrate time.
-                                CameraPosition.Z -= CameraMovementSpeed;
+                                CameraPosition += CameraForward * CameraMovementSpeed;
                             }
 
                             if (GetKeyState(0x53) & 0x8000)
@@ -483,7 +501,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 // NOTE(philip): S key is pressed.
 
                                 // TODO(philip): Integrate time.
-                                CameraPosition.Z += CameraMovementSpeed;
+                                CameraPosition -= CameraForward * CameraMovementSpeed;
                             }
 
                             if (GetKeyState(0x41) & 0x8000)
@@ -491,7 +509,8 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 // NOTE(philip): A key is pressed.
 
                                 // TODO(philip): Integrate time.
-                                CameraPosition.X -= CameraMovementSpeed;
+                                // CameraPosition.X -= CameraMovementSpeed;
+                                CameraPosition -= CameraRight * CameraMovementSpeed;
                             }
 
                             if (GetKeyState(0x44) & 0x8000)
@@ -499,21 +518,20 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 // NOTE(philip): D key is pressed.
 
                                 // TODO(philip): Integrate time.
-                                CameraPosition.X += CameraMovementSpeed;
+                                //CameraPosition.X += CameraMovementSpeed;
+                                CameraPosition += CameraRight * CameraMovementSpeed;
                             }
 
-                            m4 Transform = Scale(V3(0.05f, 0.05f, 0.05f)) *
-                                ToM4(AxisAngleRotate(V3(0.0f, 1.0f, 0.0f), ToRadians(-90.0f))) *
-                                Translate(V3(0.0f, 0.0f, 0.0f));
+                            // NOTE(philip): Lock the camera on the XZ plane.
+                            CameraPosition.Y = 0.0f;
 
-                            // TODO(philip): Integrate time.
-                            CameraPitch += CursorPositionDeltaY * CameraVerticalSensitivity;
-                            CameraYaw -= CursorPositionDeltaX * CameraHorizontalSensitivity;
+                            m4 Transform = Scale(V3(0.05f, 0.05f, 0.05f)) *
+                                ToM4(AxisAngleRotation(V3(0.0f, 1.0f, 0.0f), ToRadians(-90.0f))) *
+                                Translate(V3(0.0f, 0.0f, 0.0f));
 
                             // TODO(philip): Overload the negative operator for v3.
                             m4 View = Translate(V3(-CameraPosition.X, -CameraPosition.Y, -CameraPosition.Z)) *
-                                ToM4(AxisAngleRotate(V3(1.0f, 0.0f, 0.0f), ToRadians(-CameraPitch))) *
-                                ToM4(AxisAngleRotate(V3(0.0f, 1.0f, 0.0f), ToRadians(-CameraYaw)));
+                                ToM4(Conjugate(CameraRotation));
 
                             // TODO(philip): Why does this work?
                             m4 ViewProjection = View * Projection;

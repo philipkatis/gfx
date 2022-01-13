@@ -3,6 +3,13 @@
 //
 
 function f32
+ToRadians(f32 Value)
+{
+    f32 Result = (Value * (PI / 180.0f));
+    return Result;
+}
+
+function f32
 Sin(f32 Value)
 {
     f32 Result = sinf(Value);
@@ -27,13 +34,6 @@ function f32
 SquareRoot(f32 Value)
 {
     f32 Result = sqrtf(Value);
-    return Result;
-}
-
-function f32
-ToRadians(f32 Value)
-{
-    f32 Result = (Value * (PI / 180.0f));
     return Result;
 }
 
@@ -73,12 +73,69 @@ Normalize(v3 Vector)
     return Result;
 }
 
+function v3
+Cross(v3 Left, v3 Right)
+{
+    v3 Result = { };
+
+    Result.X = ((Left.Y * Right.Z) - (Left.Z * Right.Y));
+    Result.Y = ((Left.Z * Right.X) - (Left.X * Right.Z));
+    Result.Z = ((Left.X * Right.Y) - (Left.Y * Right.X));
+
+    return Result;
+}
+
+function v3
+operator*(v3& Vector, f32 Scalar)
+{
+    v3 Result = { };
+
+    Result.X = Vector.X * Scalar;
+    Result.Y = Vector.Y * Scalar;
+    Result.Z = Vector.Z * Scalar;
+
+    return Result;
+}
+
+function v3&
+operator+=(v3& Left, v3& Right)
+{
+    Left.X += Right.X;
+    Left.Y += Right.Y;
+    Left.Z += Right.Z;
+
+    return Left;
+}
+
+function v3&
+operator-=(v3& Left, v3& Right)
+{
+    Left.X -= Right.X;
+    Left.Y -= Right.Y;
+    Left.Z -= Right.Z;
+
+    return Left;
+}
+
 //
 // NOTE(philip): Quaternion
 //
 
 function quat
-AxisAngleRotate(v3 Axis, f32 Angle)
+Conjugate(quat Quaternion)
+{
+    quat Result = { };
+
+    Result.X = -Quaternion.X;
+    Result.Y = -Quaternion.Y;
+    Result.Z = -Quaternion.Z;
+    Result.W = Quaternion.W;
+
+    return Result;
+}
+
+function quat
+AxisAngleRotation(v3 Axis, f32 Angle)
 {
     quat Result = { };
 
@@ -92,6 +149,39 @@ AxisAngleRotate(v3 Axis, f32 Angle)
     Result.Y = Axis.Y * HalfAngleSin;
     Result.Z = Axis.Z * HalfAngleSin;
     Result.W = HalfAngleCos;
+
+    return Result;
+}
+
+function quat
+operator*(quat& Left, quat& Right)
+{
+    quat Result = { };
+
+    Result.X = ((Left.W * Right.X) + (Left.X * Right.W) + (Left.Y * Right.Z) - (Left.Z * Right.Y));
+    Result.Y = ((Left.W * Right.Y) - (Left.X * Right.Z) + (Left.Y * Right.W) + (Left.Z * Right.X));
+    Result.Z = ((Left.W * Right.Z) + (Left.X * Right.Y) - (Left.Y * Right.X) + (Left.Z * Right.W));
+    Result.W = ((Left.W * Right.W) - (Left.X * Right.X) - (Left.Y * Right.Y) - (Left.Z * Right.Z));
+
+    return Result;
+}
+
+function v3
+RotateV3(v3 Vector, quat Rotation)
+{
+    v3 Result = { };
+
+    quat P = { };
+    P.X = Vector.X;
+    P.Y = Vector.Y;
+    P.Z = Vector.Z;
+
+    quat Conj = Conjugate(Rotation);
+    quat RotatedP = ((Rotation * P) * Conj);
+
+    Result.X = RotatedP.X;
+    Result.Y = RotatedP.Y;
+    Result.Z = RotatedP.Z;
 
     return Result;
 }
