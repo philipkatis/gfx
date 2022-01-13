@@ -398,6 +398,8 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                         glUseProgram(Program);
 
+                        glEnable(GL_DEPTH_TEST);
+
                         // TODO(philip): Use the actual render area size.
                         m4 Projection = Perspective((16.0f / 9.0f), ToRadians(45.0f), 0.01f, 10000.0f);
 
