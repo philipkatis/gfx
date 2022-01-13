@@ -13,6 +13,7 @@
 #include "gfx_base.cpp"
 #include "gfx_math.cpp"
 #include "gfx_asset.cpp"
+#include "gfx_gl.cpp"
 
 //
 // NOTE(philip): Memory
@@ -199,14 +200,12 @@ function void
 Win32LoadGLFunctions(void)
 {
     // NOTE(philip): OpenGL 1.5
-
     Load(gl_gen_buffers,                    glGenBuffers);
     Load(gl_bind_buffer,                    glBindBuffer);
     Load(gl_buffer_data,                    glBufferData);
     Load(gl_delete_buffers,                 glDeleteBuffers);
 
     // NOTE(philip): OpenGL 2.0
-
     Load(gl_create_shader,                  glCreateShader);
     Load(gl_shader_source,                  glShaderSource);
     Load(gl_compile_shader,                 glCompileShader);
@@ -227,7 +226,6 @@ Win32LoadGLFunctions(void)
     Load(gl_vertex_attrib_pointer,          glVertexAttribPointer);
 
     // NOTE(philip): OpenGL 3.0
-
     Load(gl_gen_vertex_arrays,              glGenVertexArrays);
     Load(gl_bind_vertex_array,              glBindVertexArray);
     Load(gl_delete_vertex_arrays,           glDeleteVertexArrays);
@@ -301,78 +299,14 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                         Win32LoadGLFunctions();
 
-                        // TODO(philip): Pull shader module cration into it's own function.
-                        // TODO(philip): Pull shader loading into it's own function.
+                        GLuint VertexShaderModule = GL_LoadShaderModule(GL_VERTEX_SHADER,
+                                                                        "assets\\shaders\\gfx_simple_vs.glsl");
+                        GLuint PixelShaderModule = GL_LoadShaderModule(GL_FRAGMENT_SHADER,
+                                                                       "assets\\shaders\\gfx_simple_ps.glsl");
 
                         GLint Status;
 
-                        GLuint VertexShaderModule = glCreateShader(GL_VERTEX_SHADER);
-
-                        buffer VertexShaderModuleSource;
-                        if (OS_ReadEntireFile("assets\\shaders\\gfx_simple_vs.glsl", &VertexShaderModuleSource))
-                        {
-                            glShaderSource(VertexShaderModule, 1, (GLchar **)&VertexShaderModuleSource.Data,
-                                           (GLint *)&VertexShaderModuleSource.Size);
-
-                            glCompileShader(VertexShaderModule);
-                            glGetShaderiv(VertexShaderModule, GL_COMPILE_STATUS, &Status);
-
-                            if (Status == GL_FALSE)
-                            {
-                                // TODO(philip): Maybe remove this.
-                                GLint Length;
-                                glGetShaderiv(VertexShaderModule, GL_INFO_LOG_LENGTH, &Length);
-
-                                Assert(Length < 4096);
-
-                                GLchar InfoLog[4096];
-                                glGetShaderInfoLog(VertexShaderModule, 4096, &Length, InfoLog);
-
-                                // TODO(philip): Replace this with something like a message box?
-                                OutputDebugStringA("Vertex shader module compilation failed!\n");
-                                OutputDebugStringA(InfoLog);
-                                OutputDebugStringA("\n");
-
-                                glDeleteShader(VertexShaderModule);
-                                VertexShaderModule = 0;
-                            }
-
-                            OS_FreeFileMemory(&VertexShaderModuleSource);
-                        }
-
-                        GLuint PixelShaderModule = glCreateShader(GL_FRAGMENT_SHADER);
-
-                        buffer PixelShaderModuleSource;
-                        if (OS_ReadEntireFile("assets\\shaders\\gfx_simple_ps.glsl", &PixelShaderModuleSource))
-                        {
-                            glShaderSource(PixelShaderModule, 1, (GLchar **)&PixelShaderModuleSource.Data,
-                                           (GLint *)&PixelShaderModuleSource.Size);
-
-                            glCompileShader(PixelShaderModule);
-                            glGetShaderiv(PixelShaderModule, GL_COMPILE_STATUS, &Status);
-
-                            if (Status == GL_FALSE)
-                            {
-                                // TODO(philip): Maybe remove this.
-                                GLint Length;
-                                glGetShaderiv(PixelShaderModule, GL_INFO_LOG_LENGTH, &Length);
-
-                                Assert(Length < 4096);
-
-                                GLchar InfoLog[4096];
-                                glGetShaderInfoLog(PixelShaderModule, 4096, &Length, InfoLog);
-
-                                // TODO(philip): Replace this with something like a message box?
-                                OutputDebugStringA("Pixel shader module compilation failed!\n");
-                                OutputDebugStringA(InfoLog);
-                                OutputDebugStringA("\n");
-
-                                glDeleteShader(PixelShaderModule);
-                                PixelShaderModule = 0;
-                            }
-
-                            OS_FreeFileMemory(&PixelShaderModuleSource);
-                        }
+                        // TODO(philip): Pull shader loading into it's own function.
 
                         GLuint Program = glCreateProgram();
 
@@ -530,7 +464,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                             }
 
                             m4 Transform = Scale(V3(0.05f, 0.05f, 0.05f)) *
-                                ToM4(AxisAngleRotate(V3(0.0f, 0.0f, 1.0f), ToRadians(0.0f))) *
+                                ToM4(AxisAngleRotate(V3(0.0f, 1.0f, 0.0f), ToRadians(-90.0f))) *
                                 Translate(V3(0.0f, 0.0f, 0.0f));
 
                             // TODO(philip): Overload the negative operator for v3.
@@ -554,6 +488,8 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         glDeleteBuffers(1, &VertexBuffer);
                         glDeleteVertexArrays(1, &VertexArray);
                         glDeleteProgram(Program);
+
+                        // TODO(philip): Move shader deletion after program linking.
                         glDeleteShader(PixelShaderModule);
                         glDeleteShader(VertexShaderModule);
                     }
