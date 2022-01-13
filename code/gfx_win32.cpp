@@ -414,19 +414,26 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                         ShowWindow(Window, SW_SHOW);
 
-                        f32 CameraMovementSpeed = 0.025f;
-                        v3 CameraPosition = V3(0.0f, 0.0f, 20.0f);
+                        f32 CameraVerticalSensitivity = 0.01f;
+                        f32 CameraHorizontalSensitivity = 0.01f;
+
+                        f32 CameraPitch = 0.0f;
+                        f32 CameraYaw = -45.0f;
+
+                        f32 CameraMovementSpeed = 0.15f;
+                        v3 CameraPosition = V3(-20.0f, 0.0f, 20.0f);
 
                         RECT WindowDimensions;
                         GetWindowRect(Window, &WindowDimensions);
                         ClipCursor(&WindowDimensions);
 
-                        POINT WindowCenter;
-                        WindowCenter.x = ClientAreaWidth / 2;
-                        WindowCenter.y = ClientAreaHeight / 2;
-                        ClientToScreen(Window, &WindowCenter);
+                        POINT ClientAreaCenter;
+                        ClientAreaCenter.x = ClientAreaWidth / 2;
+                        ClientAreaCenter.y = ClientAreaHeight / 2;
+                        ClientToScreen(Window, &ClientAreaCenter);
 
-                        // ShowCursor(FALSE);
+                        ShowCursor(FALSE);
+                        SetCursorPos(ClientAreaCenter.x, ClientAreaCenter.y);
 
                         for (;;)
                         {
@@ -458,10 +465,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                             LONG CursorPositionDeltaX = (CursorPosition.x - (ClientAreaWidth / 2));
                             LONG CursorPositionDeltaY = -(CursorPosition.y - (ClientAreaHeight / 2));
 
-                            SetCursorPos(WindowCenter.x, WindowCenter.y);
-
-                            CameraPosition.X += CursorPositionDeltaX * 0.002f;
-                            CameraPosition.Y += CursorPositionDeltaY * 0.001f;
+                            SetCursorPos(ClientAreaCenter.x, ClientAreaCenter.y);
 
                             // TODO(philip): Should the forward and right camera movement vectors be the same
                             // as the rotation ones, or the world ones.
@@ -502,8 +506,14 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 ToM4(AxisAngleRotate(V3(0.0f, 1.0f, 0.0f), ToRadians(-90.0f))) *
                                 Translate(V3(0.0f, 0.0f, 0.0f));
 
+                            // TODO(philip): Integrate time.
+                            CameraPitch += CursorPositionDeltaY * CameraVerticalSensitivity;
+                            CameraYaw -= CursorPositionDeltaX * CameraHorizontalSensitivity;
+
                             // TODO(philip): Overload the negative operator for v3.
-                            m4 View = Translate(V3(-CameraPosition.X, -CameraPosition.Y, -CameraPosition.Z));
+                            m4 View = Translate(V3(-CameraPosition.X, -CameraPosition.Y, -CameraPosition.Z)) *
+                                ToM4(AxisAngleRotate(V3(1.0f, 0.0f, 0.0f), ToRadians(-CameraPitch))) *
+                                ToM4(AxisAngleRotate(V3(0.0f, 1.0f, 0.0f), ToRadians(-CameraYaw)));
 
                             // TODO(philip): Why does this work?
                             m4 ViewProjection = View * Projection;
