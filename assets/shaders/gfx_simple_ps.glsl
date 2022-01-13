@@ -6,11 +6,34 @@
 in vec2 v_TextureCoordinate;
 in vec3 v_Normal;
 
-layout (location = 0) out vec4 Color;
+uniform vec3 CameraDirection;
+
+layout (location = 0) out vec4 PixelColor;
 
 void main()
 {
-    vec3 Normal = normalize(v_Normal);
+    // TODO(philip): Load this from a light.
+    vec3 LightDirection = vec3(1.0, -1.0, -1.0);
+    vec4 AmbientLightColor = vec4(1.0, 1.0, 1.0, 1.0);
+    vec4 DiffuseLightColor = vec4(1.0, 1.0, 1.0, 1.0);
+    vec4 SpecularLightColor = vec4(1.0, 1.0, 1.0, 1.0);
 
-    Color = vec4(v_Normal + 0.5, 1.0);
+    // TODO(philip): Load this from a material.
+    float AmbientReflectionConstant = 0.1;
+    float DiffuseReflectionConstant = 0.6;
+    float SpecularReflectionConstant = 0.3;
+
+    vec3 PixelToLight = normalize(-LightDirection);
+    vec3 PixelToCamera = normalize(-CameraDirection);
+    vec3 Normal = normalize(v_Normal);
+    vec3 ReflectedLightDirection = reflect(LightDirection, Normal);
+
+    float DotLN = clamp(dot(PixelToLight, Normal), 0.0, 1.0);
+    float DotRV = clamp(dot(PixelToCamera, ReflectedLightDirection), 0.0, 1.0);
+
+    vec4 AmbientLight = AmbientLightColor * AmbientReflectionConstant;
+    vec4 DiffuseLight = DiffuseLightColor * DiffuseReflectionConstant * DotLN;
+    vec4 SpecularLight = SpecularLightColor * SpecularReflectionConstant * DotRV;
+
+    PixelColor = AmbientLight + DiffuseLight + SpecularLight;
 }

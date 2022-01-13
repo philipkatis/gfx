@@ -222,6 +222,7 @@ Win32LoadGLFunctions(void)
     Load(gl_get_program_info_log,           glGetProgramInfoLog);
     Load(gl_get_uniform_location,           glGetUniformLocation);
     Load(gl_use_program,                    glUseProgram);
+    Load(gl_uniform_3fv,                    glUniform3fv);
     Load(gl_uniform_matrix_4fv,             glUniformMatrix4fv);
     Load(gl_delete_program,                 glDeleteProgram);
     Load(gl_enable_vertex_attrib_array,     glEnableVertexAttribArray);
@@ -397,6 +398,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                         GLint ViewProjectionUniformLocation = glGetUniformLocation(Program, "ViewProjection");
                         GLint TransformUniformLocation = glGetUniformLocation(Program, "Transform");
+                        GLint CameraDirectionUniformLocation = glGetUniformLocation(Program, "CameraDirection");
 
                         glUseProgram(Program);
 
@@ -509,7 +511,6 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 // NOTE(philip): A key is pressed.
 
                                 // TODO(philip): Integrate time.
-                                // CameraPosition.X -= CameraMovementSpeed;
                                 CameraPosition -= CameraRight * CameraMovementSpeed;
                             }
 
@@ -518,16 +519,11 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 // NOTE(philip): D key is pressed.
 
                                 // TODO(philip): Integrate time.
-                                //CameraPosition.X += CameraMovementSpeed;
                                 CameraPosition += CameraRight * CameraMovementSpeed;
                             }
 
                             // NOTE(philip): Lock the camera on the XZ plane.
                             CameraPosition.Y = 0.0f;
-
-                            m4 Transform = Scale(V3(0.05f, 0.05f, 0.05f)) *
-                                ToM4(AxisAngleRotation(V3(0.0f, 1.0f, 0.0f), ToRadians(-90.0f))) *
-                                Translate(V3(0.0f, 0.0f, 0.0f));
 
                             // TODO(philip): Overload the negative operator for v3.
                             m4 View = Translate(V3(-CameraPosition.X, -CameraPosition.Y, -CameraPosition.Z)) *
@@ -536,11 +532,16 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                             // TODO(philip): Why does this work?
                             m4 ViewProjection = View * Projection;
 
+                            m4 Transform = Scale(V3(0.05f, 0.05f, 0.05f)) *
+                                ToM4(AxisAngleRotation(V3(0.0f, 1.0f, 0.0f), ToRadians(-90.0f))) *
+                                Translate(V3(0.0f, 0.0f, 0.0f));
+
                             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
                             glUniformMatrix4fv(ViewProjectionUniformLocation, 1, GL_FALSE,
                                                (GLfloat *)&ViewProjection);
                             glUniformMatrix4fv(TransformUniformLocation, 1, GL_FALSE, (GLfloat *)&Transform);
+                            glUniform3fv(CameraDirectionUniformLocation, 1, (GLfloat *)&CameraForward);
 
                             glDrawElements(GL_TRIANGLES, IndexCount, GL_UNSIGNED_INT, 0);
 
