@@ -1,0 +1,21 @@
+version(2);
+project_name = "gfx";
+
+patterns = {
+    "*.cpp",
+    "*.h",
+    "*.bat",
+    "*.4coder"
+};
+
+blacklist_patterns = {
+    ".*"
+};
+
+load_paths_base = {
+    { ".", .relative = true, .recursive = true }
+};
+
+load_paths = {
+    .win = load_paths_base
+};
