@@ -1,5 +1,7 @@
+// TODO(philip): Remove unwanted includes.
 // TODO(philip): Remove junk from the Windows header file.
 #include <Windows.h>
+#include <stdio.h>
 #include <math.h>
 #include <GL/gl.h>
 
@@ -400,13 +402,31 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                         glEnable(GL_DEPTH_TEST);
 
-                        // TODO(philip): Use the actual render area size.
-                        m4 Projection = Perspective((16.0f / 9.0f), ToRadians(45.0f), 0.01f, 10000.0f);
+                        RECT ClientAreaDimensions;
+                        GetClientRect(Window, &ClientAreaDimensions);
+
+                        LONG ClientAreaWidth = (ClientAreaDimensions.right - ClientAreaDimensions.left);
+                        LONG ClientAreaHeight = (ClientAreaDimensions.bottom - ClientAreaDimensions.top);
+
+                        // TODO(philip): Support resizing.
+                        f32 AspectRatio = ((f32)ClientAreaWidth / (f32)ClientAreaHeight);
+                        m4 Projection = Perspective(AspectRatio, ToRadians(45.0f), 0.01f, 10000.0f);
 
                         ShowWindow(Window, SW_SHOW);
 
                         f32 CameraMovementSpeed = 0.025f;
                         v3 CameraPosition = V3(0.0f, 0.0f, 20.0f);
+
+                        RECT WindowDimensions;
+                        GetWindowRect(Window, &WindowDimensions);
+                        ClipCursor(&WindowDimensions);
+
+                        POINT WindowCenter;
+                        WindowCenter.x = ClientAreaWidth / 2;
+                        WindowCenter.y = ClientAreaHeight / 2;
+                        ClientToScreen(Window, &WindowCenter);
+
+                        // ShowCursor(FALSE);
 
                         for (;;)
                         {
@@ -429,6 +449,19 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                             {
                                 break;
                             }
+
+                            // TODO(philip): In need of major cleanup.
+                            POINT CursorPosition;
+                            GetCursorPos(&CursorPosition);
+                            ScreenToClient(Window, &CursorPosition);
+
+                            LONG CursorPositionDeltaX = (CursorPosition.x - (ClientAreaWidth / 2));
+                            LONG CursorPositionDeltaY = -(CursorPosition.y - (ClientAreaHeight / 2));
+
+                            SetCursorPos(WindowCenter.x, WindowCenter.y);
+
+                            CameraPosition.X += CursorPositionDeltaX * 0.002f;
+                            CameraPosition.Y += CursorPositionDeltaY * 0.001f;
 
                             // TODO(philip): Should the forward and right camera movement vectors be the same
                             // as the rotation ones, or the world ones.
