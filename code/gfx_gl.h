@@ -98,4 +98,16 @@ typedef void gl_draw_elements_base_vertex(GLenum mode, GLsizei count, GLenum typ
 
 global gl_draw_elements_base_vertex *glDrawElementsBaseVertex = 0;
 
+// TODO(philip): Move to another file.
+struct mesh
+{
+    // TODO(philip): Is this a good way of doing this?
+    u64 SubmeshCount;
+    submesh *Submeshes;
+
+    GLuint VertexArray;
+    GLuint VertexBuffer;
+    GLuint IndexBuffer;
+};
+
 #endif

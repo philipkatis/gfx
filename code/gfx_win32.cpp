@@ -368,31 +368,9 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         mesh_asset MeshAsset = { };
                         LoadOBJ("assets\\meshes\\woman1.obj", &MeshAsset);
 
-                        // TODO(philip): Pull the mesh upload into a separate function.
-                        GLuint VertexArray;
-                        glGenVertexArrays(1, &VertexArray);
-                        glBindVertexArray(VertexArray);
+                        mesh Mesh = GL_UploadMeshAsset(&MeshAsset);
 
-                        GLuint VertexBuffer;
-                        glGenBuffers(1, &VertexBuffer);
-                        glBindBuffer(GL_ARRAY_BUFFER, VertexBuffer);
-                        glBufferData(GL_ARRAY_BUFFER, MeshAsset.VertexCount * sizeof(vertex), MeshAsset.Vertices,
-                                     GL_STATIC_DRAW);
-
-                        glEnableVertexAttribArray(0);
-                        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), 0);
-
-                        glEnableVertexAttribArray(1);
-                        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), (void *)(sizeof(v3)));
-
-                        glEnableVertexAttribArray(2);
-                        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void *)(sizeof(v3) + sizeof(v2)));
-
-                        GLuint IndexBuffer;
-                        glGenBuffers(1, &IndexBuffer);
-                        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffer);
-                        glBufferData(GL_ELEMENT_ARRAY_BUFFER, MeshAsset.IndexCount * sizeof(u32), MeshAsset.Indices,
-                                     GL_STATIC_DRAW);
+                        FreeMeshAsset(&MeshAsset);
 
                         GLint ViewProjectionUniformLocation = glGetUniformLocation(Program, "ViewProjection");
                         GLint TransformUniformLocation = glGetUniformLocation(Program, "Transform");
@@ -541,11 +519,14 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                             glUniformMatrix4fv(TransformUniformLocation, 1, GL_FALSE, (GLfloat *)&Transform);
                             glUniform3fv(CameraDirectionUniformLocation, 1, (GLfloat *)&CameraForward);
 
+                            // TODO(philip): Pull mesh rendering into it's own function.
+                            glBindVertexArray(Mesh.VertexArray);
+
                             for (u64 SubmeshIndex = 0;
-                                 SubmeshIndex < MeshAsset.SubmeshCount;
+                                 SubmeshIndex < Mesh.SubmeshCount;
                                  ++SubmeshIndex)
                             {
-                                submesh *Submesh = MeshAsset.Submeshes + SubmeshIndex;
+                                submesh *Submesh = Mesh.Submeshes + SubmeshIndex;
                                 glDrawElements(GL_TRIANGLES, Submesh->IndexCount, GL_UNSIGNED_INT,
                                                (GLvoid *)(Submesh->IndexOffset * sizeof(u32)));
                             }
@@ -553,11 +534,8 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                             SwapBuffers(DeviceContext);
                         }
 
-                        FreeMeshAsset(&MeshAsset);
+                        GL_FreeMesh(&Mesh);
 
-                        glDeleteBuffers(1, &IndexBuffer);
-                        glDeleteBuffers(1, &VertexBuffer);
-                        glDeleteVertexArrays(1, &VertexArray);
                         glDeleteProgram(Program);
 
                         // TODO(philip): Move shader deletion after program linking.
