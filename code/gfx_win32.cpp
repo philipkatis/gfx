@@ -85,6 +85,17 @@ OS_FreeFileMemory(buffer *Buffer)
     Buffer->Size = 0;
 }
 
+// TODO(philip): Is this a good plan?
+struct win32_info
+{
+    // TODO(philip): Switch to an iv2.
+    s32 CursorPositionX;
+    s32 CursorPositionY;
+};
+
+// TODO(philip): Should this be global?
+global win32_info Win32Info = { };
+
 function LRESULT
 Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
 {
@@ -93,6 +104,42 @@ Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
     switch (Message)
     {
         // TODO(philip): Close the application when we press escape.
+
+        case WM_INPUT:
+        {
+            UINT DataSize;
+            GetRawInputData((HRAWINPUT)LParam, RID_INPUT, 0, &DataSize, sizeof(RAWINPUTHEADER));
+
+            // TODO(philip): Replace with a memory arena.
+            void *Data = OS_AllocateMemory(DataSize);
+            GetRawInputData((HRAWINPUT)LParam, RID_INPUT, Data, &DataSize, sizeof(RAWINPUTHEADER));
+
+            RAWINPUT *Input = (RAWINPUT *)Data;
+            if (Input->header.dwType == RIM_TYPEMOUSE)
+            {
+                RAWMOUSE *Mouse = &Input->data.mouse;
+
+                // TODO(philip): Switch to an iv2.
+                s32 DeltaCursorPositionX;
+                s32 DeltaCursorPositionY;
+
+                if (Mouse->usFlags & MOUSE_MOVE_ABSOLUTE)
+                {
+                    DeltaCursorPositionX = Mouse->lLastX - Win32Info.CursorPositionX;
+                    DeltaCursorPositionY = Mouse->lLastY - Win32Info.CursorPositionY;
+                }
+                else
+                {
+                    DeltaCursorPositionX = Mouse->lLastX;
+                    DeltaCursorPositionY = Mouse->lLastY;
+                }
+
+                Win32Info.CursorPositionX -= DeltaCursorPositionX;
+                Win32Info.CursorPositionY += DeltaCursorPositionY;
+            }
+
+            OS_FreeMemory(Data);
+        } break;
 
         case WM_CLOSE:
         {
@@ -261,6 +308,18 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
         if (Window)
         {
+            // TODO(philip): Probably we want to use raw input for the keyboard and mouse buttons as well.
+            // TODO(philip): Ignore legacy messages.
+            RAWINPUTDEVICE MouseDevice = { };
+            MouseDevice.usUsagePage = 0x01; // NOTE(philip): HID_USAGE_PAGE_GENERIC
+            MouseDevice.usUsage = 0x02; // NOTE(philip): HID_USAGE_GENERIC_MOUSE
+            MouseDevice.hwndTarget = Window;
+
+            if (!RegisterRawInputDevices(&MouseDevice, 1, sizeof(RAWINPUTDEVICE)))
+            {
+                // TODO(philip): Error message.
+            }
+
             HDC DeviceContext = GetDC(Window);
 
             s32 PixelFormatAttributes[] =
@@ -392,8 +451,8 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                         ShowWindow(Window, SW_SHOW);
 
-                        f32 CameraVerticalSensitivity = 0.01f;
-                        f32 CameraHorizontalSensitivity = 0.01f;
+                        f32 CameraVerticalSensitivity = 0.1f;
+                        f32 CameraHorizontalSensitivity = 0.1f;
 
                         v3 CameraForward = V3(0.0f, 0.0f, -1.0f);
                         f32 CameraPitch = 0.0f;
@@ -402,17 +461,11 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         f32 CameraMovementSpeed = 0.15f;
                         v3 CameraPosition = V3(-20.0f, 0.0f, 20.0f);
 
-                        RECT WindowDimensions;
-                        GetWindowRect(Window, &WindowDimensions);
-                        ClipCursor(&WindowDimensions);
+                        // TODO(philip): Switch to an iv2.
+                        u32 PreviousCursorPositionX = 0;
+                        u32 PreviousCursorPositionY = 0;
 
-                        POINT ClientAreaCenter;
-                        ClientAreaCenter.x = ClientAreaWidth / 2;
-                        ClientAreaCenter.y = ClientAreaHeight / 2;
-                        ClientToScreen(Window, &ClientAreaCenter);
-
-                        ShowCursor(FALSE);
-                        SetCursorPos(ClientAreaCenter.x, ClientAreaCenter.y);
+                        wglSwapIntervalEXT(1);
 
                         for (;;)
                         {
@@ -436,20 +489,25 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 break;
                             }
 
-                            // TODO(philip): In need of major cleanup.
-                            POINT CursorPosition;
-                            GetCursorPos(&CursorPosition);
-                            ScreenToClient(Window, &CursorPosition);
+                            // TODO(philip): Switch to an iv2.
+                            s32 CursorPositionX = Win32Info.CursorPositionX;
+                            s32 CursorPositionY = Win32Info.CursorPositionY;
 
-                            LONG CursorPositionDeltaX = (CursorPosition.x - (ClientAreaWidth / 2));
-                            LONG CursorPositionDeltaY = -(CursorPosition.y - (ClientAreaHeight / 2));
+                            // TODO(philip): Switch to an iv2.
+                            s32 DeltaCursorPositionX = PreviousCursorPositionX - CursorPositionX;
+                            s32 DeltaCursorPositionY = PreviousCursorPositionY - CursorPositionY;
 
-                            SetCursorPos(ClientAreaCenter.x, ClientAreaCenter.y);
+                            char Buffer[1024];
+                            sprintf(Buffer, "X: %d, Y: %d\n", DeltaCursorPositionX, DeltaCursorPositionY);
+                            OutputDebugStringA(Buffer);
+
+                            PreviousCursorPositionX = CursorPositionX;
+                            PreviousCursorPositionY = CursorPositionY;
 
                             // TODO(philip): Integrate time.
                             // TODO(philip): Clamp these.
-                            CameraPitch += CursorPositionDeltaY * CameraVerticalSensitivity;
-                            CameraYaw -= CursorPositionDeltaX * CameraHorizontalSensitivity;
+                            CameraPitch += DeltaCursorPositionY * CameraVerticalSensitivity;
+                            CameraYaw -= DeltaCursorPositionX * CameraHorizontalSensitivity;
 
                             v3 CameraRight = Normalize(Cross(CameraForward, V3(0.0f, 1.0f, 0.0f)));
 
@@ -457,11 +515,6 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 AxisAngleRotation(V3(0.0f, 1.0f, 0.0f), ToRadians(CameraYaw));
 
                             CameraForward = Normalize(RotateV3(V3(0.0f, 0.0f, -1.0f), CameraRotation));
-
-                            char Buffer[1024];
-                            sprintf(Buffer, "X: %f, Y: %f, Z: %f\n", CameraRight.X, CameraRight.Y,
-                                    CameraRight.Z);
-                            OutputDebugStringA(Buffer);
 
                             // TODO(philip): Should the forward and right camera movement vectors be the same
                             // as the rotation ones, or the world ones.
