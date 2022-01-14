@@ -38,11 +38,35 @@ SquareRoot(f32 Value)
 }
 
 //
-// NOTE(philip): 3-Component Vector
+// NOTE(philip): 2-Component Integer Vector
+//
+
+function iv2
+IV2(s32 X, s32 Y)
+{
+    iv2 Result;
+    Result.X = X;
+    Result.Y = Y;
+
+    return Result;
+}
+
+function iv2
+operator-(iv2& Left, iv2& Right)
+{
+    iv2 Result;
+    Result.X = Left.X - Right.X;
+    Result.Y = Left.Y - Right.Y;
+
+    return Result;
+}
+
+//
+// NOTE(philip): 3-Component Floating-Point Vector
 //
 
 function v3
-V3(float X, float Y, float Z)
+V3(f32 X, f32 Y, f32 Z)
 {
     v3 Result = { };
 

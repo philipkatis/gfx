@@ -88,12 +88,11 @@ OS_FreeFileMemory(buffer *Buffer)
 // TODO(philip): Is this a good plan?
 struct win32_info
 {
-    // TODO(philip): Switch to an iv2.
-    s32 CursorPositionBeforeMouseGrabbedX;
-    s32 CursorPositionBeforeMouseGrabbedY;
+    // NOTE(philip): This is the position of the cursor before we enable raw input. We want to restore the cursor
+    // to this position after we finish using raw input.
+    iv2 CursorPositionToRestore;
 
-    s32 CursorPositionX;
-    s32 CursorPositionY;
+    iv2 CursorPosition;
 };
 
 // TODO(philip): Should this be global?
@@ -118,11 +117,11 @@ Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
             {
                 ShowCursor(false);
 
+                // TODO(philip): Switch to using a funtion.
                 POINT CursorPosition;
                 GetCursorPos(&CursorPosition);
 
-                Win32Info.CursorPositionBeforeMouseGrabbedX = CursorPosition.x;
-                Win32Info.CursorPositionBeforeMouseGrabbedY = CursorPosition.y;
+                Win32Info.CursorPositionToRestore = IV2(CursorPosition.x, CursorPosition.y);
 
                 RECT ClientAreaDimensions;
                 GetClientRect(Window, &ClientAreaDimensions);
@@ -189,7 +188,7 @@ Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
 
                 ShowCursor(true);
                 ClipCursor(0);
-                SetCursorPos(Win32Info.CursorPositionBeforeMouseGrabbedX, Win32Info.CursorPositionBeforeMouseGrabbedY);
+                SetCursorPos(Win32Info.CursorPositionToRestore.X, Win32Info.CursorPositionToRestore.Y);
             }
         } break;
 
@@ -213,8 +212,8 @@ Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
 
                 if (Mouse->usFlags & MOUSE_MOVE_ABSOLUTE)
                 {
-                    DeltaCursorPositionX = Mouse->lLastX - Win32Info.CursorPositionX;
-                    DeltaCursorPositionY = Mouse->lLastY - Win32Info.CursorPositionY;
+                    DeltaCursorPositionX = Mouse->lLastX - Win32Info.CursorPosition.X;
+                    DeltaCursorPositionY = Mouse->lLastY - Win32Info.CursorPosition.Y;
                 }
                 else
                 {
@@ -222,8 +221,8 @@ Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
                     DeltaCursorPositionY = Mouse->lLastY;
                 }
 
-                Win32Info.CursorPositionX -= DeltaCursorPositionX;
-                Win32Info.CursorPositionY += DeltaCursorPositionY;
+                Win32Info.CursorPosition.X -= DeltaCursorPositionX;
+                Win32Info.CursorPosition.Y += DeltaCursorPositionY;
             }
 
             OS_FreeMemory(Data);
@@ -538,8 +537,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         v3 CameraPosition = V3(-20.0f, 0.0f, 20.0f);
 
                         // TODO(philip): Switch to an iv2.
-                        u32 PreviousCursorPositionX = 0;
-                        u32 PreviousCursorPositionY = 0;
+                        iv2 PreviousCursorPosition = { };
 
                         wglSwapIntervalEXT(1);
 
@@ -567,25 +565,14 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                             if (IsMouseGrabbed)
                             {
-                                // TODO(philip): Switch to an iv2.
-                                s32 CursorPositionX = Win32Info.CursorPositionX;
-                                s32 CursorPositionY = Win32Info.CursorPositionY;
-
-                                // TODO(philip): Switch to an iv2.
-                                s32 DeltaCursorPositionX = PreviousCursorPositionX - CursorPositionX;
-                                s32 DeltaCursorPositionY = PreviousCursorPositionY - CursorPositionY;
-
-                                char Buffer[1024];
-                                sprintf(Buffer, "X: %d, Y: %d\n", DeltaCursorPositionX, DeltaCursorPositionY);
-                                OutputDebugStringA(Buffer);
-
-                                PreviousCursorPositionX = CursorPositionX;
-                                PreviousCursorPositionY = CursorPositionY;
+                                iv2 CursorPosition = Win32Info.CursorPosition;
+                                iv2 CursorPositionDelta = PreviousCursorPosition - CursorPosition;
+                                PreviousCursorPosition = CursorPosition;
 
                                 // TODO(philip): Integrate time.
                                 // TODO(philip): Clamp these.
-                                CameraPitch += DeltaCursorPositionY * CameraVerticalSensitivity;
-                                CameraYaw -= DeltaCursorPositionX * CameraHorizontalSensitivity;
+                                CameraPitch += CursorPositionDelta.Y * CameraVerticalSensitivity;
+                                CameraYaw -= CursorPositionDelta.X * CameraHorizontalSensitivity;
                             }
 
                             v3 CameraRight = Normalize(Cross(CameraForward, V3(0.0f, 1.0f, 0.0f)));

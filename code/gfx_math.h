@@ -3,6 +3,17 @@
 
 #define PI (3.1415926535897932f)
 
+union iv2
+{
+    struct
+    {
+        s32 X;
+        s32 Y;
+    };
+
+    s32 Data[2];
+};
+
 union v2
 {
     struct
