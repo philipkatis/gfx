@@ -91,4 +91,11 @@ global gl_gen_vertex_arrays *glGenVertexArrays = 0;
 global gl_bind_vertex_array *glBindVertexArray = 0;
 global gl_delete_vertex_arrays *glDeleteVertexArrays = 0;
 
+// NOTE(philip): OpenGL 3.2
+
+typedef void gl_draw_elements_base_vertex(GLenum mode, GLsizei count, GLenum type, const void *indices,
+                                          GLint basevertex);
+
+global gl_draw_elements_base_vertex *glDrawElementsBaseVertex = 0;
+
 #endif

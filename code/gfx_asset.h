@@ -28,6 +28,12 @@ struct vertex
     v3 Normal;
 };
 
+struct submesh
+{
+    u64 IndexOffset;
+    u64 IndexCount;
+};
+
 struct mesh_asset
 {
     // TODO(philip): Bitfield for what vertex data is available.
@@ -39,6 +45,9 @@ struct mesh_asset
 
     u64 IndexCount;
     u32 *Indices;
+
+    u64 SubmeshCount;
+    submesh *Submeshes;
 };
 
 #endif

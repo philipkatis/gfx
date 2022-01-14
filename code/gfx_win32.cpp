@@ -232,6 +232,9 @@ Win32LoadGLFunctions(void)
     Load(gl_gen_vertex_arrays,              glGenVertexArrays);
     Load(gl_bind_vertex_array,              glBindVertexArray);
     Load(gl_delete_vertex_arrays,           glDeleteVertexArrays);
+
+    // NOTE(philip): OpenGL 3.2
+    Load(gl_draw_elements_base_vertex,      glDrawElementsBaseVertex);
 }
 
 #undef Load
@@ -385,16 +388,11 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         glEnableVertexAttribArray(2);
                         glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void *)(sizeof(v3) + sizeof(v2)));
 
-                        // TODO(philip): Temporary.
-                        u64 IndexCount = MeshAsset.IndexCount;
-
                         GLuint IndexBuffer;
                         glGenBuffers(1, &IndexBuffer);
                         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffer);
-                        glBufferData(GL_ELEMENT_ARRAY_BUFFER, IndexCount * sizeof(u32), MeshAsset.Indices,
+                        glBufferData(GL_ELEMENT_ARRAY_BUFFER, MeshAsset.IndexCount * sizeof(u32), MeshAsset.Indices,
                                      GL_STATIC_DRAW);
-
-                        FreeMeshAsset(&MeshAsset);
 
                         GLint ViewProjectionUniformLocation = glGetUniformLocation(Program, "ViewProjection");
                         GLint TransformUniformLocation = glGetUniformLocation(Program, "Transform");
@@ -543,10 +541,19 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                             glUniformMatrix4fv(TransformUniformLocation, 1, GL_FALSE, (GLfloat *)&Transform);
                             glUniform3fv(CameraDirectionUniformLocation, 1, (GLfloat *)&CameraForward);
 
-                            glDrawElements(GL_TRIANGLES, IndexCount, GL_UNSIGNED_INT, 0);
+                            for (u64 SubmeshIndex = 0;
+                                 SubmeshIndex < MeshAsset.SubmeshCount;
+                                 ++SubmeshIndex)
+                            {
+                                submesh *Submesh = MeshAsset.Submeshes + SubmeshIndex;
+                                glDrawElements(GL_TRIANGLES, Submesh->IndexCount, GL_UNSIGNED_INT,
+                                               (GLvoid *)(Submesh->IndexOffset * sizeof(u32)));
+                            }
 
                             SwapBuffers(DeviceContext);
                         }
+
+                        FreeMeshAsset(&MeshAsset);
 
                         glDeleteBuffers(1, &IndexBuffer);
                         glDeleteBuffers(1, &VertexBuffer);

@@ -133,6 +133,11 @@ LoadOBJ(char *Path, mesh_asset *Asset)
                         }
                     } break;
 
+                    case 'g':
+                    {
+                        ++Asset->SubmeshCount;
+                    } break;
+
                     case 'f':
                     {
                         ++TriangleCount;
@@ -156,6 +161,9 @@ LoadOBJ(char *Path, mesh_asset *Asset)
         index_set_table IndexSetTable = { };
 
         Asset->Indices = (u32 *)OS_AllocateMemory(TriangleCount * 3 * sizeof(u32));
+
+        Asset->Submeshes = (submesh *)OS_AllocateMemory(Asset->SubmeshCount * sizeof(submesh));
+        s64 SubmeshIndex = -1;
 
         char *Pointer = (char *)FileData.Data;
         char *End = (char *)FileData.Data + FileData.Size;
@@ -186,6 +194,14 @@ LoadOBJ(char *Path, mesh_asset *Asset)
                             Pointer = OBJ_ParseV3(Pointer, Position);
                         } break;
                     }
+                } break;
+
+                case 'g':
+                {
+                    Pointer = SkipLine(Pointer);
+
+                    submesh *Submesh = Asset->Submeshes + ++SubmeshIndex;
+                    Submesh->IndexOffset = Asset->IndexCount;
                 } break;
 
                 case 'f':
@@ -219,6 +235,9 @@ LoadOBJ(char *Path, mesh_asset *Asset)
                         u64 ID = GetIndexSetID(&IndexSetTable, Position, TextureCoordinate, Normal);
                         Asset->Indices[Asset->IndexCount++] = ID;
                     }
+
+                    submesh *Submesh = Asset->Submeshes + SubmeshIndex;
+                    Submesh->IndexCount += 3;
                 } break;
 
                 default:
@@ -263,15 +282,18 @@ LoadOBJ(char *Path, mesh_asset *Asset)
 }
 
 function void
-FreeMeshAsset(mesh_asset *MeshAsset)
+FreeMeshAsset(mesh_asset *Asset)
 {
-    Assert(MeshAsset);
+    Assert(Asset);
 
-    OS_FreeMemory(MeshAsset->Vertices);
-    OS_FreeMemory(MeshAsset->Indices);
+    OS_FreeMemory(Asset->Vertices);
+    OS_FreeMemory(Asset->Indices);
+    OS_FreeMemory(Asset->Submeshes);
 
-    MeshAsset->VertexCount = 0;
-    MeshAsset->Vertices = 0;
-    MeshAsset->IndexCount = 0;
-    MeshAsset->Indices = 0;
+    Asset->VertexCount = 0;
+    Asset->Vertices = 0;
+    Asset->IndexCount = 0;
+    Asset->Indices = 0;
+    Asset->SubmeshCount = 0;
+    Asset->Submeshes = 0;
 }
