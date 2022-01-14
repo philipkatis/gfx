@@ -89,12 +89,17 @@ OS_FreeFileMemory(buffer *Buffer)
 struct win32_info
 {
     // TODO(philip): Switch to an iv2.
+    s32 CursorPositionBeforeMouseGrabbedX;
+    s32 CursorPositionBeforeMouseGrabbedY;
+
     s32 CursorPositionX;
     s32 CursorPositionY;
 };
 
 // TODO(philip): Should this be global?
 global win32_info Win32Info = { };
+
+global b32 IsMouseGrabbed = false;
 
 function LRESULT
 Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
@@ -104,6 +109,89 @@ Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
     switch (Message)
     {
         // TODO(philip): Close the application when we press escape.
+
+        case WM_LBUTTONUP:
+        {
+            IsMouseGrabbed = !IsMouseGrabbed;
+
+            if (IsMouseGrabbed)
+            {
+                ShowCursor(false);
+
+                POINT CursorPosition;
+                GetCursorPos(&CursorPosition);
+
+                Win32Info.CursorPositionBeforeMouseGrabbedX = CursorPosition.x;
+                Win32Info.CursorPositionBeforeMouseGrabbedY = CursorPosition.y;
+
+                RECT ClientAreaDimensions;
+                GetClientRect(Window, &ClientAreaDimensions);
+
+                POINT ClientAreaTopLeft;
+                ClientAreaTopLeft.x = ClientAreaDimensions.left;
+                ClientAreaTopLeft.y = ClientAreaDimensions.top;
+
+                POINT ClientAreaBottomRight;
+                ClientAreaBottomRight.x = ClientAreaDimensions.right;
+                ClientAreaBottomRight.y = ClientAreaDimensions.bottom;
+
+                ClientToScreen(Window, &ClientAreaTopLeft);
+                ClientToScreen(Window, &ClientAreaBottomRight);
+
+                RECT ClientArea;
+                ClientArea.left = ClientAreaTopLeft.x;
+                ClientArea.top = ClientAreaTopLeft.y;
+                ClientArea.right = ClientAreaBottomRight.x;
+                ClientArea.bottom = ClientAreaBottomRight.y;
+
+                ClipCursor(&ClientArea);
+
+                s32 ClientAreaWidth = ClientAreaDimensions.right;
+                s32 ClientAreaHeight = ClientAreaDimensions.bottom;
+
+                s32 ClientAreaCenterX = (ClientAreaWidth / 2);
+                s32 ClientAreaCenterY = (ClientAreaHeight / 2);
+
+                POINT ClientAreaCenter;
+                ClientAreaCenter.x = ClientAreaCenterX;
+                ClientAreaCenter.y = ClientAreaCenterY;
+
+                ClientToScreen(Window, &ClientAreaCenter);
+
+                SetCursorPos(ClientAreaCenter.x, ClientAreaCenter.y);
+
+                // TODO(philip): Probably we want to use raw input for the keyboard and mouse buttons as well.
+                // TODO(philip): Ignore legacy messages.
+                RAWINPUTDEVICE MouseDevice = { };
+                MouseDevice.usUsagePage = 0x01; // NOTE(philip): HID_USAGE_PAGE_GENERIC
+                MouseDevice.usUsage = 0x02; // NOTE(philip): HID_USAGE_GENERIC_MOUSE
+                MouseDevice.hwndTarget = Window;
+
+                if (!RegisterRawInputDevices(&MouseDevice, 1, sizeof(RAWINPUTDEVICE)))
+                {
+                    // TODO(philip): Error message.
+                }
+            }
+            else
+            {
+                // TODO(philip): Probably we want to use raw input for the keyboard and mouse buttons as well.
+                // TODO(philip): Ignore legacy messages.
+                RAWINPUTDEVICE MouseDevice = { };
+                MouseDevice.usUsagePage = 0x01; // NOTE(philip): HID_USAGE_PAGE_GENERIC
+                MouseDevice.usUsage = 0x02; // NOTE(philip): HID_USAGE_GENERIC_MOUSE
+                MouseDevice.dwFlags = RIDEV_REMOVE;
+                MouseDevice.hwndTarget = 0;
+
+                if (!RegisterRawInputDevices(&MouseDevice, 1, sizeof(RAWINPUTDEVICE)))
+                {
+                    // TODO(philip): Error message.
+                }
+
+                ShowCursor(true);
+                ClipCursor(0);
+                SetCursorPos(Win32Info.CursorPositionBeforeMouseGrabbedX, Win32Info.CursorPositionBeforeMouseGrabbedY);
+            }
+        } break;
 
         case WM_INPUT:
         {
@@ -308,18 +396,6 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
         if (Window)
         {
-            // TODO(philip): Probably we want to use raw input for the keyboard and mouse buttons as well.
-            // TODO(philip): Ignore legacy messages.
-            RAWINPUTDEVICE MouseDevice = { };
-            MouseDevice.usUsagePage = 0x01; // NOTE(philip): HID_USAGE_PAGE_GENERIC
-            MouseDevice.usUsage = 0x02; // NOTE(philip): HID_USAGE_GENERIC_MOUSE
-            MouseDevice.hwndTarget = Window;
-
-            if (!RegisterRawInputDevices(&MouseDevice, 1, sizeof(RAWINPUTDEVICE)))
-            {
-                // TODO(philip): Error message.
-            }
-
             HDC DeviceContext = GetDC(Window);
 
             s32 PixelFormatAttributes[] =
@@ -489,25 +565,28 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 break;
                             }
 
-                            // TODO(philip): Switch to an iv2.
-                            s32 CursorPositionX = Win32Info.CursorPositionX;
-                            s32 CursorPositionY = Win32Info.CursorPositionY;
+                            if (IsMouseGrabbed)
+                            {
+                                // TODO(philip): Switch to an iv2.
+                                s32 CursorPositionX = Win32Info.CursorPositionX;
+                                s32 CursorPositionY = Win32Info.CursorPositionY;
 
-                            // TODO(philip): Switch to an iv2.
-                            s32 DeltaCursorPositionX = PreviousCursorPositionX - CursorPositionX;
-                            s32 DeltaCursorPositionY = PreviousCursorPositionY - CursorPositionY;
+                                // TODO(philip): Switch to an iv2.
+                                s32 DeltaCursorPositionX = PreviousCursorPositionX - CursorPositionX;
+                                s32 DeltaCursorPositionY = PreviousCursorPositionY - CursorPositionY;
 
-                            char Buffer[1024];
-                            sprintf(Buffer, "X: %d, Y: %d\n", DeltaCursorPositionX, DeltaCursorPositionY);
-                            OutputDebugStringA(Buffer);
+                                char Buffer[1024];
+                                sprintf(Buffer, "X: %d, Y: %d\n", DeltaCursorPositionX, DeltaCursorPositionY);
+                                OutputDebugStringA(Buffer);
 
-                            PreviousCursorPositionX = CursorPositionX;
-                            PreviousCursorPositionY = CursorPositionY;
+                                PreviousCursorPositionX = CursorPositionX;
+                                PreviousCursorPositionY = CursorPositionY;
 
-                            // TODO(philip): Integrate time.
-                            // TODO(philip): Clamp these.
-                            CameraPitch += DeltaCursorPositionY * CameraVerticalSensitivity;
-                            CameraYaw -= DeltaCursorPositionX * CameraHorizontalSensitivity;
+                                // TODO(philip): Integrate time.
+                                // TODO(philip): Clamp these.
+                                CameraPitch += DeltaCursorPositionY * CameraVerticalSensitivity;
+                                CameraYaw -= DeltaCursorPositionX * CameraHorizontalSensitivity;
+                            }
 
                             v3 CameraRight = Normalize(Cross(CameraForward, V3(0.0f, 1.0f, 0.0f)));
 
@@ -516,39 +595,42 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                             CameraForward = Normalize(RotateV3(V3(0.0f, 0.0f, -1.0f), CameraRotation));
 
-                            // TODO(philip): Should the forward and right camera movement vectors be the same
-                            // as the rotation ones, or the world ones.
-
-                            if (GetKeyState(0x57) & 0x8000)
+                            if (IsMouseGrabbed)
                             {
-                                // NOTE(philip): W key is pressed.
+                                // TODO(philip): Should the forward and right camera movement vectors be the same
+                                // as the rotation ones, or the world ones.
 
-                                // TODO(philip): Integrate time.
-                                CameraPosition += CameraForward * CameraMovementSpeed;
-                            }
+                                if (GetKeyState(0x57) & 0x8000)
+                                {
+                                    // NOTE(philip): W key is pressed.
 
-                            if (GetKeyState(0x53) & 0x8000)
-                            {
-                                // NOTE(philip): S key is pressed.
+                                    // TODO(philip): Integrate time.
+                                    CameraPosition += CameraForward * CameraMovementSpeed;
+                                }
 
-                                // TODO(philip): Integrate time.
-                                CameraPosition -= CameraForward * CameraMovementSpeed;
-                            }
+                                if (GetKeyState(0x53) & 0x8000)
+                                {
+                                    // NOTE(philip): S key is pressed.
 
-                            if (GetKeyState(0x41) & 0x8000)
-                            {
-                                // NOTE(philip): A key is pressed.
+                                    // TODO(philip): Integrate time.
+                                    CameraPosition -= CameraForward * CameraMovementSpeed;
+                                }
 
-                                // TODO(philip): Integrate time.
-                                CameraPosition -= CameraRight * CameraMovementSpeed;
-                            }
+                                if (GetKeyState(0x41) & 0x8000)
+                                {
+                                    // NOTE(philip): A key is pressed.
 
-                            if (GetKeyState(0x44) & 0x8000)
-                            {
-                                // NOTE(philip): D key is pressed.
+                                    // TODO(philip): Integrate time.
+                                    CameraPosition -= CameraRight * CameraMovementSpeed;
+                                }
 
-                                // TODO(philip): Integrate time.
-                                CameraPosition += CameraRight * CameraMovementSpeed;
+                                if (GetKeyState(0x44) & 0x8000)
+                                {
+                                    // NOTE(philip): D key is pressed.
+
+                                    // TODO(philip): Integrate time.
+                                    CameraPosition += CameraRight * CameraMovementSpeed;
+                                }
                             }
 
                             // NOTE(philip): Lock the camera on the XZ plane.
@@ -558,7 +640,6 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                             m4 View = Translate(V3(-CameraPosition.X, -CameraPosition.Y, -CameraPosition.Z)) *
                                 ToM4(Conjugate(CameraRotation));
 
-                            // TODO(philip): Why does this work?
                             m4 ViewProjection = View * Projection;
 
                             m4 Transform = Scale(V3(0.05f, 0.05f, 0.05f)) *
