@@ -86,16 +86,25 @@ OS_FreeFileMemory(buffer *Buffer)
 }
 
 // TODO(philip): Is this a good plan?
-// TODO(philip): Rename to state.
-struct win32_info
+struct win32_state
 {
-    b32 IsCursorEnabled;
-    iv2 CursorPositionBeforeDisable;
+    b32 IsCursorHidden;
+    iv2 CursorPositionToRestore;
+
+    b32 UseRawInput;
     iv2 RawCursorPosition;
 };
 
 // TODO(philip): Should this be global?
-global win32_info Win32Info = { };
+global win32_state Win32State = { };
+
+function void
+Win32InitializeState(void)
+{
+    // TODO(philip): If raw input is enabled by default, actually enable it.
+    Win32State.UseRawInput = false;
+    Win32State.IsCursorHidden = false;
+}
 
 function iv2
 Win32GetWindowSize(HWND Window)
@@ -112,7 +121,11 @@ Win32GetCursorPosition(HWND Window)
 {
     iv2 Position;
 
-    if (Win32Info.IsCursorEnabled)
+    if (Win32State.UseRawInput)
+    {
+        Position = Win32State.RawCursorPosition;
+    }
+    else
     {
         POINT ScreenSpacePosition;
         GetCursorPos(&ScreenSpacePosition);
@@ -121,10 +134,6 @@ Win32GetCursorPosition(HWND Window)
         ScreenToClient(Window, &ClientSpacePosition);
 
         Position = IV2(ClientSpacePosition.x, ClientSpacePosition.y);
-    }
-    else
-    {
-        Position = Win32Info.RawCursorPosition;
     }
 
     return Position;
@@ -142,16 +151,16 @@ Win32SetCursorPosition(HWND Window, iv2 Position)
 }
 
 function void
-Win32DisableCursor(HWND Window)
+Win32HideCursor(HWND Window)
 {
-    if (Win32Info.IsCursorEnabled)
+    if (!Win32State.IsCursorHidden)
     {
         iv2 WindowSize = Win32GetWindowSize(Window);
         iv2 WindowCenter = IV2((WindowSize.X / 2), (WindowSize.Y / 2));
 
         // NOTE(philip): We store the position of the cursor before we disable it. This way we can restore back to it,
         // whenever we re-enable it.
-        Win32Info.CursorPositionBeforeDisable = Win32GetCursorPosition(Window);
+        Win32State.CursorPositionToRestore = Win32GetCursorPosition(Window);
 
         // NOTE(philip): Hide the windows cursor.
         ShowCursor(false);
@@ -161,9 +170,9 @@ Win32DisableCursor(HWND Window)
 
         // NOTE(philip): Restrict the cursor within the bounds of the client area.
         {
-            RECT ClientSpaceClientRect;
+            RECT ClientSpaceClientRect = { };
             ClientSpaceClientRect.right = WindowSize.X;
-            ClientSpaceClientRect.left = WindowSize.Y;
+            ClientSpaceClientRect.bottom = WindowSize.Y;
 
             // NOTE(philip): Since a RECT is essectialy two points, we convert them to screen space separately.
             RECT ScreenSpaceClientRect = ClientSpaceClientRect;
@@ -173,52 +182,77 @@ Win32DisableCursor(HWND Window)
             ClipCursor(&ScreenSpaceClientRect);
         }
 
-        // NOTE(philip): Enable raw input from the mouse.
-        // TODO(philip): Probably we want to use raw input for the keyboard and mouse buttons as well.
-        // TODO(philip): Ignore legacy messages.
-        RAWINPUTDEVICE MouseDevice = { };
-        MouseDevice.usUsagePage = 0x01; // NOTE(philip): HID_USAGE_PAGE_GENERIC
-        MouseDevice.usUsage = 0x02; // NOTE(philip): HID_USAGE_GENERIC_MOUSE
-        MouseDevice.hwndTarget = Window;
-
-        if (!RegisterRawInputDevices(&MouseDevice, 1, sizeof(RAWINPUTDEVICE)))
-        {
-            // TODO(philip): Error message.
-        }
-
-        Win32Info.IsCursorEnabled = false;
+        Win32State.IsCursorHidden = true;
     }
 }
 
 function void
-Win32EnableCursor(HWND Window)
+Win32RestoreCursor(HWND Window)
 {
-    if (!Win32Info.IsCursorEnabled)
+    if (Win32State.IsCursorHidden)
     {
-        // NOTE(philip): Disable raw input from the mouse.
-        // TODO(philip): Probably we want to use raw input for the keyboard and mouse buttons as well.
-        // TODO(philip): Ignore legacy messages.
-        RAWINPUTDEVICE MouseDevice = { };
-        MouseDevice.usUsagePage = 0x01; // NOTE(philip): HID_USAGE_PAGE_GENERIC
-        MouseDevice.usUsage = 0x02; // NOTE(philip): HID_USAGE_GENERIC_MOUSE
-        MouseDevice.dwFlags = RIDEV_REMOVE;
-        MouseDevice.hwndTarget = 0;
-
-        if (!RegisterRawInputDevices(&MouseDevice, 1, sizeof(RAWINPUTDEVICE)))
-        {
-            // TODO(philip): Error message.
-        }
-
-        // NOTE(philip): Make sure the cursor is not restricted.
         ClipCursor(0);
-
-        // NOTE(philip): Put the cursor back.
-        Win32SetCursorPosition(Window, Win32Info.CursorPositionBeforeDisable);
-
-        // NOTE(philip): Show the cursor.
+        Win32SetCursorPosition(Window, Win32State.CursorPositionToRestore);
         ShowCursor(true);
 
-        Win32Info.IsCursorEnabled = true;
+        Win32State.IsCursorHidden = false;
+    }
+}
+
+function void
+Win32EnableRawInput(HWND Window)
+{
+    Win32HideCursor(Window);
+
+    // NOTE(philip): Enable raw input from the mouse.
+    // TODO(philip): Probably we want to use raw input for the keyboard and mouse buttons as well.
+    // TODO(philip): Ignore legacy messages.
+    RAWINPUTDEVICE MouseDevice = { };
+    MouseDevice.usUsagePage = 0x01; // NOTE(philip): HID_USAGE_PAGE_GENERIC
+    MouseDevice.usUsage = 0x02; // NOTE(philip): HID_USAGE_GENERIC_MOUSE
+    MouseDevice.hwndTarget = Window;
+
+    if (!RegisterRawInputDevices(&MouseDevice, 1, sizeof(RAWINPUTDEVICE)))
+    {
+        // TODO(philip): Error message.
+    }
+}
+
+function void
+Win32DisableRawInput(HWND Window)
+{
+    // NOTE(philip): Disable raw input from the mouse.
+    // TODO(philip): Probably we want to use raw input for the keyboard and mouse buttons as well.
+    // TODO(philip): Ignore legacy messages.
+    RAWINPUTDEVICE MouseDevice = { };
+    MouseDevice.usUsagePage = 0x01; // NOTE(philip): HID_USAGE_PAGE_GENERIC
+    MouseDevice.usUsage = 0x02; // NOTE(philip): HID_USAGE_GENERIC_MOUSE
+    MouseDevice.dwFlags = RIDEV_REMOVE;
+    MouseDevice.hwndTarget = 0;
+
+    if (!RegisterRawInputDevices(&MouseDevice, 1, sizeof(RAWINPUTDEVICE)))
+    {
+        // TODO(philip): Error message.
+    }
+
+    Win32RestoreCursor(Window);
+}
+
+function void
+Win32SetRawInput(HWND Window, b32 Enabled)
+{
+    if (Win32State.UseRawInput != Enabled)
+    {
+        if (Enabled)
+        {
+            Win32EnableRawInput(Window);
+        }
+        else
+        {
+            Win32DisableRawInput(Window);
+        }
+
+        Win32State.UseRawInput = Enabled;
     }
 }
 
@@ -231,15 +265,19 @@ Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
     {
         // TODO(philip): Close the application when we press escape.
 
-        case WM_LBUTTONUP:
+        case WM_KILLFOCUS:
         {
-            if (Win32Info.IsCursorEnabled)
+            if (Win32State.UseRawInput)
             {
-                Win32DisableCursor(Window);
+                Win32DisableRawInput(Window);
             }
-            else
+        } break;
+
+        case WM_SETFOCUS:
+        {
+            if (Win32State.UseRawInput)
             {
-                Win32EnableCursor(Window);
+                Win32EnableRawInput(Window);
             }
         } break;
 
@@ -260,11 +298,11 @@ Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
                 iv2 CursorPositionDelta = IV2(Mouse->lLastX, Mouse->lLastY);
                 if (Mouse->usFlags & MOUSE_MOVE_ABSOLUTE)
                 {
-                    CursorPositionDelta -= Win32Info.RawCursorPosition;
+                    CursorPositionDelta -= Win32State.RawCursorPosition;
                 }
 
-                Win32Info.RawCursorPosition.X -= CursorPositionDelta.X;
-                Win32Info.RawCursorPosition.Y += CursorPositionDelta.Y;
+                Win32State.RawCursorPosition.X -= CursorPositionDelta.X;
+                Win32State.RawCursorPosition.Y += CursorPositionDelta.Y;
             }
 
             OS_FreeMemory(Data);
@@ -418,6 +456,9 @@ Win32LoadGLFunctions(void)
 s32
 WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 ShowCMD)
 {
+    // IMPORTANT(philip): Always the first thing that happens.
+    Win32InitializeState();
+
     Win32LoadWLGExtensions(Instance);
 
     LPCSTR WindowClassName = "gfx_win32_window_class";
@@ -578,12 +619,10 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         f32 CameraMovementSpeed = 0.15f;
                         v3 CameraPosition = V3(-20.0f, 0.0f, 20.0f);
 
+                        b32 ControlCamera = false;
                         iv2 PreviousCursorPosition = { };
 
                         wglSwapIntervalEXT(1);
-
-                        // TODO(philip): Move this in some sort of init code.
-                        Win32Info.IsCursorEnabled = true;
 
                         for (;;)
                         {
@@ -607,7 +646,25 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 break;
                             }
 
-                            if (!Win32Info.IsCursorEnabled)
+                            if (GetKeyState(VK_LBUTTON) & 0x8000)
+                            {
+                                if (!ControlCamera)
+                                {
+                                    Win32SetRawInput(Window, true);
+                                    ControlCamera = true;
+                                }
+                            }
+
+                            if (GetKeyState(VK_ESCAPE) & 0x8000)
+                            {
+                                if (ControlCamera)
+                                {
+                                    Win32SetRawInput(Window, false);
+                                    ControlCamera = false;
+                                }
+                            }
+
+                            if (ControlCamera)
                             {
                                 iv2 CursorPosition = Win32GetCursorPosition(Window);
                                 iv2 CursorPositionDelta = PreviousCursorPosition - CursorPosition;
@@ -626,7 +683,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                             CameraForward = Normalize(RotateV3(V3(0.0f, 0.0f, -1.0f), CameraRotation));
 
-                            if (!Win32Info.IsCursorEnabled)
+                            if (ControlCamera)
                             {
                                 // TODO(philip): Should the forward and right camera movement vectors be the same
                                 // as the rotation ones, or the world ones.
