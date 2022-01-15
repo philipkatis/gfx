@@ -86,19 +86,141 @@ OS_FreeFileMemory(buffer *Buffer)
 }
 
 // TODO(philip): Is this a good plan?
+// TODO(philip): Rename to state.
 struct win32_info
 {
-    // NOTE(philip): This is the position of the cursor before we enable raw input. We want to restore the cursor
-    // to this position after we finish using raw input.
-    iv2 CursorPositionToRestore;
-
-    iv2 CursorPosition;
+    b32 IsCursorEnabled;
+    iv2 CursorPositionBeforeDisable;
+    iv2 RawCursorPosition;
 };
 
 // TODO(philip): Should this be global?
 global win32_info Win32Info = { };
 
-global b32 IsMouseGrabbed = false;
+function iv2
+Win32GetWindowSize(HWND Window)
+{
+    RECT Dimensions;
+    GetClientRect(Window, &Dimensions);
+
+    iv2 Size = IV2((Dimensions.right - Dimensions.left), (Dimensions.bottom - Dimensions.top));
+    return Size;
+}
+
+function iv2
+Win32GetCursorPosition(HWND Window)
+{
+    iv2 Position;
+
+    if (Win32Info.IsCursorEnabled)
+    {
+        POINT ScreenSpacePosition;
+        GetCursorPos(&ScreenSpacePosition);
+
+        POINT ClientSpacePosition = ScreenSpacePosition;
+        ScreenToClient(Window, &ClientSpacePosition);
+
+        Position = IV2(ClientSpacePosition.x, ClientSpacePosition.y);
+    }
+    else
+    {
+        Position = Win32Info.RawCursorPosition;
+    }
+
+    return Position;
+}
+
+function void
+Win32SetCursorPosition(HWND Window, iv2 Position)
+{
+    POINT ScreenSpacePosition;
+    ScreenSpacePosition.x = Position.X;
+    ScreenSpacePosition.y = Position.Y;
+    ClientToScreen(Window, &ScreenSpacePosition);
+
+    SetCursorPos(ScreenSpacePosition.x, ScreenSpacePosition.y);
+}
+
+function void
+Win32DisableCursor(HWND Window)
+{
+    if (Win32Info.IsCursorEnabled)
+    {
+        iv2 WindowSize = Win32GetWindowSize(Window);
+        iv2 WindowCenter = IV2((WindowSize.X / 2), (WindowSize.Y / 2));
+
+        // NOTE(philip): We store the position of the cursor before we disable it. This way we can restore back to it,
+        // whenever we re-enable it.
+        Win32Info.CursorPositionBeforeDisable = Win32GetCursorPosition(Window);
+
+        // NOTE(philip): Hide the windows cursor.
+        ShowCursor(false);
+
+        // NOTE(philip): Center the cursor on the window.
+        Win32SetCursorPosition(Window, WindowCenter);
+
+        // NOTE(philip): Restrict the cursor within the bounds of the client area.
+        {
+            RECT ClientSpaceClientRect;
+            ClientSpaceClientRect.right = WindowSize.X;
+            ClientSpaceClientRect.left = WindowSize.Y;
+
+            // NOTE(philip): Since a RECT is essectialy two points, we convert them to screen space separately.
+            RECT ScreenSpaceClientRect = ClientSpaceClientRect;
+            ClientToScreen(Window, (POINT *)&ScreenSpaceClientRect.left);
+            ClientToScreen(Window, (POINT *)&ScreenSpaceClientRect.right);
+
+            ClipCursor(&ScreenSpaceClientRect);
+        }
+
+        // NOTE(philip): Enable raw input from the mouse.
+        // TODO(philip): Probably we want to use raw input for the keyboard and mouse buttons as well.
+        // TODO(philip): Ignore legacy messages.
+        RAWINPUTDEVICE MouseDevice = { };
+        MouseDevice.usUsagePage = 0x01; // NOTE(philip): HID_USAGE_PAGE_GENERIC
+        MouseDevice.usUsage = 0x02; // NOTE(philip): HID_USAGE_GENERIC_MOUSE
+        MouseDevice.hwndTarget = Window;
+
+        if (!RegisterRawInputDevices(&MouseDevice, 1, sizeof(RAWINPUTDEVICE)))
+        {
+            // TODO(philip): Error message.
+        }
+
+        Win32Info.IsCursorEnabled = false;
+    }
+}
+
+function void
+Win32EnableCursor(HWND Window)
+{
+    if (!Win32Info.IsCursorEnabled)
+    {
+        // NOTE(philip): Disable raw input from the mouse.
+        // TODO(philip): Probably we want to use raw input for the keyboard and mouse buttons as well.
+        // TODO(philip): Ignore legacy messages.
+        RAWINPUTDEVICE MouseDevice = { };
+        MouseDevice.usUsagePage = 0x01; // NOTE(philip): HID_USAGE_PAGE_GENERIC
+        MouseDevice.usUsage = 0x02; // NOTE(philip): HID_USAGE_GENERIC_MOUSE
+        MouseDevice.dwFlags = RIDEV_REMOVE;
+        MouseDevice.hwndTarget = 0;
+
+        if (!RegisterRawInputDevices(&MouseDevice, 1, sizeof(RAWINPUTDEVICE)))
+        {
+            // TODO(philip): Error message.
+        }
+
+        // NOTE(philip): Make sure the cursor is not restricted.
+        ClipCursor(0);
+
+        // NOTE(philip): Put the cursor back.
+        Win32SetCursorPosition(Window, Win32Info.CursorPositionBeforeDisable);
+
+        // NOTE(philip): Show the cursor.
+        ShowCursor(true);
+
+        Win32Info.IsCursorEnabled = true;
+    }
+}
 
 function LRESULT
 Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
@@ -111,84 +233,13 @@ Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
 
         case WM_LBUTTONUP:
         {
-            IsMouseGrabbed = !IsMouseGrabbed;
-
-            if (IsMouseGrabbed)
+            if (Win32Info.IsCursorEnabled)
             {
-                ShowCursor(false);
-
-                // TODO(philip): Switch to using a funtion.
-                POINT CursorPosition;
-                GetCursorPos(&CursorPosition);
-
-                Win32Info.CursorPositionToRestore = IV2(CursorPosition.x, CursorPosition.y);
-
-                RECT ClientAreaDimensions;
-                GetClientRect(Window, &ClientAreaDimensions);
-
-                POINT ClientAreaTopLeft;
-                ClientAreaTopLeft.x = ClientAreaDimensions.left;
-                ClientAreaTopLeft.y = ClientAreaDimensions.top;
-
-                POINT ClientAreaBottomRight;
-                ClientAreaBottomRight.x = ClientAreaDimensions.right;
-                ClientAreaBottomRight.y = ClientAreaDimensions.bottom;
-
-                ClientToScreen(Window, &ClientAreaTopLeft);
-                ClientToScreen(Window, &ClientAreaBottomRight);
-
-                RECT ClientArea;
-                ClientArea.left = ClientAreaTopLeft.x;
-                ClientArea.top = ClientAreaTopLeft.y;
-                ClientArea.right = ClientAreaBottomRight.x;
-                ClientArea.bottom = ClientAreaBottomRight.y;
-
-                ClipCursor(&ClientArea);
-
-                s32 ClientAreaWidth = ClientAreaDimensions.right;
-                s32 ClientAreaHeight = ClientAreaDimensions.bottom;
-
-                s32 ClientAreaCenterX = (ClientAreaWidth / 2);
-                s32 ClientAreaCenterY = (ClientAreaHeight / 2);
-
-                POINT ClientAreaCenter;
-                ClientAreaCenter.x = ClientAreaCenterX;
-                ClientAreaCenter.y = ClientAreaCenterY;
-
-                ClientToScreen(Window, &ClientAreaCenter);
-
-                SetCursorPos(ClientAreaCenter.x, ClientAreaCenter.y);
-
-                // TODO(philip): Probably we want to use raw input for the keyboard and mouse buttons as well.
-                // TODO(philip): Ignore legacy messages.
-                RAWINPUTDEVICE MouseDevice = { };
-                MouseDevice.usUsagePage = 0x01; // NOTE(philip): HID_USAGE_PAGE_GENERIC
-                MouseDevice.usUsage = 0x02; // NOTE(philip): HID_USAGE_GENERIC_MOUSE
-                MouseDevice.hwndTarget = Window;
-
-                if (!RegisterRawInputDevices(&MouseDevice, 1, sizeof(RAWINPUTDEVICE)))
-                {
-                    // TODO(philip): Error message.
-                }
+                Win32DisableCursor(Window);
             }
             else
             {
-                // TODO(philip): Probably we want to use raw input for the keyboard and mouse buttons as well.
-                // TODO(philip): Ignore legacy messages.
-                RAWINPUTDEVICE MouseDevice = { };
-                MouseDevice.usUsagePage = 0x01; // NOTE(philip): HID_USAGE_PAGE_GENERIC
-                MouseDevice.usUsage = 0x02; // NOTE(philip): HID_USAGE_GENERIC_MOUSE
-                MouseDevice.dwFlags = RIDEV_REMOVE;
-                MouseDevice.hwndTarget = 0;
-
-                if (!RegisterRawInputDevices(&MouseDevice, 1, sizeof(RAWINPUTDEVICE)))
-                {
-                    // TODO(philip): Error message.
-                }
-
-                ShowCursor(true);
-                ClipCursor(0);
-                SetCursorPos(Win32Info.CursorPositionToRestore.X, Win32Info.CursorPositionToRestore.Y);
+                Win32EnableCursor(Window);
             }
         } break;
 
@@ -206,23 +257,14 @@ Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
             {
                 RAWMOUSE *Mouse = &Input->data.mouse;
 
-                // TODO(philip): Switch to an iv2.
-                s32 DeltaCursorPositionX;
-                s32 DeltaCursorPositionY;
-
+                iv2 CursorPositionDelta = IV2(Mouse->lLastX, Mouse->lLastY);
                 if (Mouse->usFlags & MOUSE_MOVE_ABSOLUTE)
                 {
-                    DeltaCursorPositionX = Mouse->lLastX - Win32Info.CursorPosition.X;
-                    DeltaCursorPositionY = Mouse->lLastY - Win32Info.CursorPosition.Y;
-                }
-                else
-                {
-                    DeltaCursorPositionX = Mouse->lLastX;
-                    DeltaCursorPositionY = Mouse->lLastY;
+                    CursorPositionDelta -= Win32Info.RawCursorPosition;
                 }
 
-                Win32Info.CursorPosition.X -= DeltaCursorPositionX;
-                Win32Info.CursorPosition.Y += DeltaCursorPositionY;
+                Win32Info.RawCursorPosition.X -= CursorPositionDelta.X;
+                Win32Info.RawCursorPosition.Y += CursorPositionDelta.Y;
             }
 
             OS_FreeMemory(Data);
@@ -536,10 +578,12 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         f32 CameraMovementSpeed = 0.15f;
                         v3 CameraPosition = V3(-20.0f, 0.0f, 20.0f);
 
-                        // TODO(philip): Switch to an iv2.
                         iv2 PreviousCursorPosition = { };
 
                         wglSwapIntervalEXT(1);
+
+                        // TODO(philip): Move this in some sort of init code.
+                        Win32Info.IsCursorEnabled = true;
 
                         for (;;)
                         {
@@ -563,9 +607,9 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 break;
                             }
 
-                            if (IsMouseGrabbed)
+                            if (!Win32Info.IsCursorEnabled)
                             {
-                                iv2 CursorPosition = Win32Info.CursorPosition;
+                                iv2 CursorPosition = Win32GetCursorPosition(Window);
                                 iv2 CursorPositionDelta = PreviousCursorPosition - CursorPosition;
                                 PreviousCursorPosition = CursorPosition;
 
@@ -582,7 +626,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                             CameraForward = Normalize(RotateV3(V3(0.0f, 0.0f, -1.0f), CameraRotation));
 
-                            if (IsMouseGrabbed)
+                            if (!Win32Info.IsCursorEnabled)
                             {
                                 // TODO(philip): Should the forward and right camera movement vectors be the same
                                 // as the rotation ones, or the world ones.

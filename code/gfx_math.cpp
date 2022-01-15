@@ -61,6 +61,15 @@ operator-(iv2& Left, iv2& Right)
     return Result;
 }
 
+function iv2&
+operator-=(iv2& Left, iv2& Right)
+{
+    Left.X -= Right.X;
+    Left.Y -= Right.Y;
+
+    return Left;
+}
+
 //
 // NOTE(philip): 3-Component Floating-Point Vector
 //
