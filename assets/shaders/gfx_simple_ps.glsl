@@ -36,7 +36,7 @@ void main()
     vec4 DiffuseLight = DiffuseLightColor * DiffuseReflectionConstant * DotLN;
     vec4 SpecularLight = SpecularLightColor * SpecularReflectionConstant * DotRV;
 
-    PixelColor = AmbientLight + DiffuseLight + SpecularLight;
+	vec4 Light = AmbientLight + DiffuseLight + SpecularLight;
 
-    PixelColor = texture2D(Texture, v_TextureCoordinate);
+    PixelColor = texture2D(Texture, v_TextureCoordinate) * Light;
 }
