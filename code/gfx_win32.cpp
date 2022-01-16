@@ -363,6 +363,9 @@ Win32_LoadWLGExtensions(HINSTANCE Instance)
 function void
 Win32_LoadGLFunctions(void)
 {
+    // NOTE(philip): OpenGL 1.3
+    Load(gl_active_texture,                 glActiveTexture);
+
     // NOTE(philip): OpenGL 1.5
     Load(gl_gen_buffers,                    glGenBuffers);
     Load(gl_bind_buffer,                    glBindBuffer);
@@ -476,12 +479,50 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         shader Shader = GL_LoadShader("assets\\shaders\\gfx_simple_vs.glsl",
                                                       "assets\\shaders\\gfx_simple_ps.glsl");
 
+                        u8 *TextureData = (u8 *)OS_AllocateMemory(256 * 256 * 3 * sizeof(u8));
+
+                        for (u32 Index = 0;
+                             Index < 256 * 256 * 3;
+                             ++Index)
+                        {
+                            TextureData[Index] = 255;
+                        }
+
+                        glActiveTexture(GL_TEXTURE0);
+
+                        GLuint Texture;
+                        glGenTextures(1, &Texture);
+                        glBindTexture(GL_TEXTURE_2D, Texture);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, 256, 256, 0, GL_RGB, GL_UNSIGNED_BYTE, TextureData);
+
+                        mesh_asset QuadAsset = { };
+                        QuadAsset.VertexCount = 4;
+                        QuadAsset.Vertices = (vertex *)OS_AllocateMemory(QuadAsset.VertexCount * sizeof(vertex));
+                        QuadAsset.Vertices[0] = { { -0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } };
+                        QuadAsset.Vertices[1] = { {  0.5f, -0.5f, 0.0f }, { 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } };
+                        QuadAsset.Vertices[2] = { {  0.5f,  0.5f, 0.0f }, { 1.0f, 1.0f }, { 0.0f, 0.0f, 1.0f } };
+                        QuadAsset.Vertices[3] = { { -0.5f,  0.5f, 0.0f }, { 0.0f, 1.0f }, { 0.0f, 0.0f, 1.0f } };
+                        QuadAsset.IndexCount = 6;
+                        QuadAsset.Indices = (u32 *)OS_AllocateMemory(QuadAsset.IndexCount * sizeof(u32));
+                        QuadAsset.Indices[0] = 0;
+                        QuadAsset.Indices[1] = 1;
+                        QuadAsset.Indices[2] = 2;
+                        QuadAsset.Indices[3] = 2;
+                        QuadAsset.Indices[4] = 3;
+                        QuadAsset.Indices[5] = 0;
+
+                        mesh Mesh = GL_UploadMeshAsset(&QuadAsset);
+                        FreeMeshAsset(&QuadAsset);
+#if HEAD
                         mesh_asset MeshAsset = { };
                         LoadOBJ("assets\\meshes\\woman1.obj", &MeshAsset);
 
                         mesh Mesh = GL_UploadMeshAsset(&MeshAsset);
 
                         FreeMeshAsset(&MeshAsset);
+#endif
 
                         // TODO(philip): Move these to shader loading.
                         GLint ViewProjectionUniformLocation = glGetUniformLocation(Shader.Program, "ViewProjection");
@@ -505,15 +546,22 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                         ShowWindow(Window, SW_SHOW);
 
+                        f32 CameraMovementSpeed = 9.0f;
                         f32 CameraVerticalSensitivity = 0.05f;
                         f32 CameraHorizontalSensitivity = 0.07f;
 
                         v3 CameraForward = V3(0.0f, 0.0f, -1.0f);
+
+#if 0
                         f32 CameraPitch = 0.0f;
                         f32 CameraYaw = -45.0f;
 
-                        f32 CameraMovementSpeed = 9.0f;
                         v3 CameraPosition = V3(-20.0f, 0.0f, 20.0f);
+#endif
+                        f32 CameraPitch = 0.0f;
+                        f32 CameraYaw = 0.0f;
+
+                        v3 CameraPosition = V3(0.0f, 0.0f, 2.0f);
 
                         POINT CursorPositionBeforeCapture;
                         GetCursorPos(&CursorPositionBeforeCapture);
@@ -584,9 +632,10 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                             m4 ViewProjection = View * Projection;
 
-                            m4 Transform = Scale(V3(0.05f, 0.05f, 0.05f)) *
-                                ToM4(AxisAngleRotation(V3(0.0f, 1.0f, 0.0f), ToRadians(-90.0f))) *
-                                Translate(V3(0.0f, 0.0f, 0.0f));
+                            // TODO(philip): Bring back IdentityM4().
+                            m4 Transform = M4(1.0f);/* Scale(V3(0.05f, 0.05f, 0.05f)) *
+                                                              ToM4(AxisAngleRotation(V3(0.0f, 1.0f, 0.0f), ToRadians(-90.0f))) *
+                                                              Translate(V3(0.0f, 0.0f, 0.0f));*/
 
                             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -594,10 +643,12 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                                (GLfloat *)&ViewProjection);
                             glUniformMatrix4fv(TransformUniformLocation, 1, GL_FALSE, (GLfloat *)&Transform);
                             glUniform3fv(CameraDirectionUniformLocation, 1, (GLfloat *)&CameraForward);
-
                             // TODO(philip): Pull mesh rendering into it's own function.
                             glBindVertexArray(Mesh.VertexArray);
 
+                            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+#if HEAD
                             for (u64 SubmeshIndex = 0;
                                  SubmeshIndex < Mesh.SubmeshCount;
                                  ++SubmeshIndex)
@@ -606,6 +657,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 glDrawElements(GL_TRIANGLES, Submesh->IndexCount, GL_UNSIGNED_INT,
                                                (GLvoid *)(Submesh->IndexOffset * sizeof(u32)));
                             }
+#endif
 
                             SwapBuffers(DeviceContext);
 
@@ -645,6 +697,8 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                             PreviousFrameEndTicks = FrameEndTicks;
                         }
+
+                        glDeleteTextures(1, &Texture);
 
                         GL_FreeMesh(&Mesh);
                         GL_FreeShader(&Shader);

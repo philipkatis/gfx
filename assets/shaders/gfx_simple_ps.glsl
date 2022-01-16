@@ -7,6 +7,7 @@ in vec2 v_TextureCoordinate;
 in vec3 v_Normal;
 
 uniform vec3 CameraDirection;
+uniform sampler2D Texture;
 
 layout (location = 0) out vec4 PixelColor;
 
@@ -36,4 +37,6 @@ void main()
     vec4 SpecularLight = SpecularLightColor * SpecularReflectionConstant * DotRV;
 
     PixelColor = AmbientLight + DiffuseLight + SpecularLight;
+
+    PixelColor = texture2D(Texture, v_TextureCoordinate);
 }

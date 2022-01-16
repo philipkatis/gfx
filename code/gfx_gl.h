@@ -9,6 +9,14 @@
 
 */
 
+// NOTE(philip): OpenGL 1.3
+
+#define GL_TEXTURE0                       0x84C0
+
+typedef void gl_active_texture(GLenum texture);
+
+global gl_active_texture *glActiveTexture = 0;
+
 // NOTE(philip): OpenGL 1.5
 
 typedef signed long long int GLsizeiptr;
@@ -103,7 +111,7 @@ global gl_draw_elements_base_vertex *glDrawElementsBaseVertex = 0;
 // TODO(philip): Move to another file.
 struct shader
 {
-    GLuint Program;\
+    GLuint Program;
 
     // TODO(philip): Only keep these here for debug builds.
     GLuint VertexModule;
