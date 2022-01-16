@@ -82,9 +82,19 @@ struct tga_header
 
 #pragma pack(pop)
 
+typedef u32 texture_format;
+enum
+{
+    TextureFormat_None = 0,
+    TextureFormat_BGR  = 1,
+    TextureFormat_BGRA = 2
+};
+
 struct texture_asset
 {
     u8 *Data;
+
+    texture_format Format;
     u32 Width;
     u32 Height;
 };

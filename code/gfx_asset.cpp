@@ -323,7 +323,7 @@ LoadTGA(char *Path, texture_asset *Asset)
         // NOTE(philip): Make sure we don't get something we do not support.
         Assert(Header->IDLength == 0);
         Assert(Header->ColorMapType == 0);
-        Assert(Header->ImageType == 10);
+        Assert((Header->ImageType == 2) || (Header->ImageType == 10));
         Assert(Header->ColorMapFirstEntryIndex == 0);
         Assert(Header->ColorMapEntryCount == 0);
         Assert(Header->BitsPerColorMapEntry == 0);
@@ -331,74 +331,96 @@ LoadTGA(char *Path, texture_asset *Asset)
         Assert(Header->OriginY == 0);
         Assert(Header->Width != 0);
         Assert(Header->Height != 0);
-        Assert(Header->BitsPerPixel == 32);
+        Assert((Header->BitsPerPixel == 24) || (Header->BitsPerPixel == 32));
+
+        u32 BytesPerPixel = (Header->BitsPerPixel / 8);
+        switch (BytesPerPixel)
+        {
+            case 3:
+            {
+                Asset->Format = TextureFormat_BGR;
+            } break;
+
+            case 4:
+            {
+                Asset->Format = TextureFormat_BGRA;
+            } break;
+        }
 
         Asset->Width = Header->Width;
         Asset->Height = Header->Height;
-        u32 BytesPerPixel = (Header->BitsPerPixel / 8);
-        u64 Size = (Asset->Width * Asset->Height * BytesPerPixel);
+
+        u64 PixelCount = (Asset->Width * Asset->Height);
+        u64 Size = (PixelCount * BytesPerPixel);
 
         Asset->Data = (u8 *)OS_AllocateMemory(Size);
 
-        u64 PixelComponentIndex = 0;
-        while (PixelComponentIndex < Size)
+        switch (Header->ImageType)
         {
-            u8 RepetitionCount = *Pointer;
-            ++Pointer;
-
-            u8 PacketType = (RepetitionCount >> 7);
-            Assert(PacketType == 0 || PacketType == 1);
-
-            u8 PixelCount = (RepetitionCount & 0x7F) + 1;
-            Assert(PixelCount > 0 && PixelCount <= 128);
-
-            if (PacketType == 0)
+            case 2:
             {
-                // TODO(philip): Replace with memcpy.
-                for (u32 PixelIndex = 0;
-                     PixelIndex < PixelCount;
-                     ++PixelIndex)
-                {
-                    Asset->Data[PixelComponentIndex++ + 2] = *Pointer;
-                    ++Pointer;
+                // NOTE(philip): In this image type, the pixel values are raw and uncompressed.
+                // TODO(philip): Replace memcpy.
+                memcpy(Asset->Data, Pointer, Size);
+            } break;
 
-                    Asset->Data[PixelComponentIndex++] = *Pointer;
-                    ++Pointer;
-
-                    Asset->Data[PixelComponentIndex++ - 2] = *Pointer;
-                    ++Pointer;
-
-                    Asset->Data[PixelComponentIndex++] = *Pointer;
-                    ++Pointer;
-                }
-            }
-            else
+            case 10:
             {
-                u8 Red = *Pointer;
-                ++Pointer;
+                // NOTE(philip): In this image type, the pixel values are raw and compressed using Run-Length
+                // encoding.
 
-                u8 Green = *Pointer;
-                ++Pointer;
-
-                u8 Blue = *Pointer;
-                ++Pointer;
-
-                u8 Alpha = *Pointer;
-                ++Pointer;
-
-                Assert(Alpha == 255);
-
-                // TODO(philip): Replace with memcpy.
-                for (u32 PixelIndex = 0;
-                     PixelIndex < PixelCount;
-                     ++PixelIndex)
+                u64 PixelIndex = 0;
+                while (PixelIndex < PixelCount)
                 {
-                    Asset->Data[PixelComponentIndex++] = Blue;
-                    Asset->Data[PixelComponentIndex++] = Green;
-                    Asset->Data[PixelComponentIndex++] = Red;
-                    Asset->Data[PixelComponentIndex++] = Alpha;
+                    // NOTE(philip): In Run-Length encoding, each packet has a header. We use it to extract the
+                    // type of the packet and the number of pixels it consists of.
+                    u8 PacketHeader = *Pointer;
+                    ++Pointer;
+
+                    u8 PacketType = (PacketHeader >> 7);
+                    Assert(PacketType == 0 || PacketType == 1);
+
+                    // NOTE(philip): A pixel count of 0 is actually 1.
+                    u8 PacketPixelCount = (PacketHeader & 0x7F) + 1;
+                    Assert(PacketPixelCount > 0 && PacketPixelCount <= 128);
+
+                    switch (PacketType)
+                    {
+                        case 0:
+                        {
+                            // NOTE(philip): In this packet type, there is a sequece of uniquely colored pixels.
+                            u32 DataOffset = (PixelIndex * BytesPerPixel);
+                            u32 PacketSize = (PacketPixelCount * BytesPerPixel);
+
+                            // TODO(philip): Replace memcpy.
+                            memcpy(Asset->Data + DataOffset, Pointer, PacketSize);
+
+                            PixelIndex += PacketPixelCount;
+                            Pointer += PacketSize;
+                        } break;
+
+                        case 1:
+                        {
+                            // NOTE(philip): In this packet type, there is a sequence of identically colored pixels.
+                            u32 PacketSize = BytesPerPixel;
+
+                            for (u32 Index = 0;
+                                 Index < PacketPixelCount;
+                                 ++Index)
+                            {
+                                u32 DataOffset = (PixelIndex * BytesPerPixel);
+
+                                // TODO(philip): Replace memcpy.
+                                memcpy(Asset->Data + DataOffset, Pointer, BytesPerPixel);
+
+                                ++PixelIndex;
+                            }
+
+                            Pointer += PacketSize;
+                        } break;
+                    }
                 }
-            }
+            } break;
         }
 
         OS_FreeFileMemory(&FileData);

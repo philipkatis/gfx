@@ -9,6 +9,11 @@
 
 */
 
+// NOTE(philip): OpenGL 1.2
+
+#define GL_BGR                            0x80E0
+#define GL_BGRA                           0x80E1
+
 // NOTE(philip): OpenGL 1.3
 
 #define GL_TEXTURE0                       0x84C0

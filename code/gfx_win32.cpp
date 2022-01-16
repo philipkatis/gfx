@@ -489,8 +489,21 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         glBindTexture(GL_TEXTURE_2D, Texture);
                         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
                         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-                        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, TextureAsset.Width, TextureAsset.Height,
-                                     0, GL_RGBA, GL_UNSIGNED_BYTE, TextureAsset.Data);
+
+                        switch (TextureAsset.Format)
+                        {
+                            case TextureFormat_BGR:
+                            {
+                                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, TextureAsset.Width, TextureAsset.Height,
+                                             0, GL_BGR, GL_UNSIGNED_BYTE, TextureAsset.Data);
+                            } break;
+
+                            case TextureFormat_BGRA:
+                            {
+                                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, TextureAsset.Width, TextureAsset.Height,
+                                             0, GL_BGRA, GL_UNSIGNED_BYTE, TextureAsset.Data);
+                            } break;
+                        }
 
                         FreeTextureAsset(&TextureAsset);
 
