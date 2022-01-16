@@ -297,3 +297,122 @@ FreeMeshAsset(mesh_asset *Asset)
     Asset->SubmeshCount = 0;
     Asset->Submeshes = 0;
 }
+
+//
+// NOTE(philip): TGA
+//
+
+// TODO(philip): Documentation.
+// TODO(philip): Return success or failure.
+function void
+LoadTGA(char *Path, texture_asset *Asset)
+{
+    Assert(Asset);
+
+    // TODO(philip): Redundant?
+    *Asset = { };
+
+    buffer FileData;
+    if (OS_ReadEntireFile(Path, &FileData))
+    {
+        u8 *Pointer = (u8 *)FileData.Data;
+
+        tga_header *Header = (tga_header *)Pointer;
+        Pointer += sizeof(tga_header);
+
+        // NOTE(philip): Make sure we don't get something we do not support.
+        Assert(Header->IDLength == 0);
+        Assert(Header->ColorMapType == 0);
+        Assert(Header->ImageType == 10);
+        Assert(Header->ColorMapFirstEntryIndex == 0);
+        Assert(Header->ColorMapEntryCount == 0);
+        Assert(Header->BitsPerColorMapEntry == 0);
+        Assert(Header->OriginX == 0);
+        Assert(Header->OriginY == 0);
+        Assert(Header->Width != 0);
+        Assert(Header->Height != 0);
+        Assert(Header->BitsPerPixel == 32);
+
+        Asset->Width = Header->Width;
+        Asset->Height = Header->Height;
+        u32 BytesPerPixel = (Header->BitsPerPixel / 8);
+        u64 Size = (Asset->Width * Asset->Height * BytesPerPixel);
+
+        Asset->Data = (u8 *)OS_AllocateMemory(Size);
+
+        u64 PixelComponentIndex = 0;
+        while (PixelComponentIndex < Size)
+        {
+            u8 RepetitionCount = *Pointer;
+            ++Pointer;
+
+            u8 PacketType = (RepetitionCount >> 7);
+            Assert(PacketType == 0 || PacketType == 1);
+
+            u8 PixelCount = (RepetitionCount & 0x7F) + 1;
+            Assert(PixelCount > 0 && PixelCount <= 128);
+
+            if (PacketType == 0)
+            {
+                // TODO(philip): Replace with memcpy.
+                for (u32 PixelIndex = 0;
+                     PixelIndex < PixelCount;
+                     ++PixelIndex)
+                {
+                    Asset->Data[PixelComponentIndex++ + 2] = *Pointer;
+                    ++Pointer;
+
+                    Asset->Data[PixelComponentIndex++] = *Pointer;
+                    ++Pointer;
+
+                    Asset->Data[PixelComponentIndex++ - 2] = *Pointer;
+                    ++Pointer;
+
+                    Asset->Data[PixelComponentIndex++] = *Pointer;
+                    ++Pointer;
+                }
+            }
+            else
+            {
+                u8 Red = *Pointer;
+                ++Pointer;
+
+                u8 Green = *Pointer;
+                ++Pointer;
+
+                u8 Blue = *Pointer;
+                ++Pointer;
+
+                u8 Alpha = *Pointer;
+                ++Pointer;
+
+                Assert(Alpha == 255);
+
+                // TODO(philip): Replace with memcpy.
+                for (u32 PixelIndex = 0;
+                     PixelIndex < PixelCount;
+                     ++PixelIndex)
+                {
+                    Asset->Data[PixelComponentIndex++] = Blue;
+                    Asset->Data[PixelComponentIndex++] = Green;
+                    Asset->Data[PixelComponentIndex++] = Red;
+                    Asset->Data[PixelComponentIndex++] = Alpha;
+                }
+            }
+        }
+
+        OS_FreeFileMemory(&FileData);
+    }
+}
+
+function void
+FreeTextureAsset(texture_asset *Asset)
+{
+    Assert(Asset);
+
+    OS_FreeMemory(Asset->Data);
+
+    Asset->Data = 0;
+    Asset->Width = 0;
+    Asset->Height = 0;
+}

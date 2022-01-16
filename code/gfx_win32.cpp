@@ -405,31 +405,6 @@ Win32_LoadGLFunctions(void)
 
 #undef Load
 
-#pragma pack(push, 1)
-
-// TODO(philip): Move this.
-struct tga_header
-{
-    u8 IDLength;
-    u8 ColorMapType;
-    u8 ImageType;
-
-    u16 ColorMapFirstEntryIndex;
-    u16 ColorMapEntryCount;
-    u8 BitsPerColorMapEntry;
-
-    u16 BottomLeftX;
-    u16 BottomLeftY;
-    u16 Width;
-    u16 Height;
-    u8 BitsPerPixel;
-    u8 ImageDescriptor;
-};
-
-// TODO(philip): Static assert to make sure the size of this is always correct.
-
-#pragma pack(pop)
-
 s32
 WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 ShowCMD)
 {
@@ -501,101 +476,11 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         wglMakeCurrent(DeviceContext, OpenGLContext);
                         Win32_LoadGLFunctions();
 
-                        u32 TextureWidth = 0;
-                        u32 TextureHeight = 0;
-                        u8 *TextureData = 0;
-
-                        buffer FileData;
-                        if (OS_ReadEntireFile("assets\\meshes\\head.tga", &FileData))
-                        {
-                            u8 *Pointer = (u8 *)FileData.Data;
-
-                            tga_header *Header = (tga_header *)Pointer;
-                            Pointer += sizeof(tga_header) + Header->IDLength;
-
-                            Assert(Header->ColorMapType == 0);
-                            Assert(Header->ImageType == 10);
-                            Assert(Header->BottomLeftX == 0);
-                            Assert(Header->BottomLeftY == 0);
-
-                            TextureWidth = Header->Width;
-                            TextureHeight = Header->Height;
-                            u32 BytesPerPixel = (Header->BitsPerPixel / 8);
-
-                            Assert(TextureWidth > 0);
-                            Assert(TextureHeight > 0);
-                            Assert(BytesPerPixel == 4);
-
-                            u64 TextureSize = (TextureWidth * TextureHeight * BytesPerPixel);
-                            TextureData = (u8 *)OS_AllocateMemory(TextureSize);
-
-                            u64 PixelComponentIndex = 0;
-
-                            while (PixelComponentIndex < TextureSize)
-                            {
-                                u8 RepetitionCount = *Pointer;
-                                ++Pointer;
-
-                                u8 PacketType = (RepetitionCount >> 7);
-                                Assert(PacketType == 0 || PacketType == 1);
-
-                                u8 PixelCount = (RepetitionCount & 0x7F) + 1;
-                                Assert(PixelCount > 0 && PixelCount <= 128);
-
-                                if (PacketType == 0)
-                                {
-                                    for (u32 PixelIndex = 0;
-                                         PixelIndex < PixelCount;
-                                         ++PixelIndex)
-                                    {
-                                        TextureData[PixelComponentIndex++ + 2] = *Pointer;
-                                        ++Pointer;
-
-                                        TextureData[PixelComponentIndex++] = *Pointer;
-                                        ++Pointer;
-
-                                        TextureData[PixelComponentIndex++ - 2] = *Pointer;
-                                        ++Pointer;
-
-                                        TextureData[PixelComponentIndex++] = *Pointer;
-                                        ++Pointer;
-                                    }
-                                }
-                                else
-                                {
-                                    u8 Red = *Pointer;
-                                    ++Pointer;
-
-                                    u8 Green = *Pointer;
-                                    ++Pointer;
-
-                                    u8 Blue = *Pointer;
-                                    ++Pointer;
-
-                                    u8 Alpha = *Pointer;
-                                    ++Pointer;
-
-                                    Assert(Alpha == 255);
-
-                                    for (u32 PixelIndex = 0;
-                                         PixelIndex < PixelCount;
-                                         ++PixelIndex)
-                                    {
-                                        TextureData[PixelComponentIndex++] = Blue;
-                                        TextureData[PixelComponentIndex++] = Green;
-                                        TextureData[PixelComponentIndex++] = Red;
-                                        TextureData[PixelComponentIndex++] = Alpha;
-                                    }
-                                }
-                            }
-
-                            Assert(PixelComponentIndex == TextureWidth * TextureHeight * BytesPerPixel);
-
-                            OS_FreeFileMemory(&FileData);
-                        }
-
                         shader Shader = GL_LoadShader("assets\\shaders\\gfx_simple_vs.glsl",
                                                       "assets\\shaders\\gfx_simple_ps.glsl");
+
+                        texture_asset TextureAsset;
+                        LoadTGA("assets\\meshes\\head.tga", &TextureAsset);
 
                         glActiveTexture(GL_TEXTURE0);
 
@@ -604,36 +489,17 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         glBindTexture(GL_TEXTURE_2D, Texture);
                         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
                         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-                        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, TextureWidth, TextureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, TextureData);
+                        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, TextureAsset.Width, TextureAsset.Height,
+                                     0, GL_RGBA, GL_UNSIGNED_BYTE, TextureAsset.Data);
 
-#define HEAD 1
-#if !HEAD
-                        mesh_asset QuadAsset = { };
-                        QuadAsset.VertexCount = 4;
-                        QuadAsset.Vertices = (vertex *)OS_AllocateMemory(QuadAsset.VertexCount * sizeof(vertex));
-                        QuadAsset.Vertices[0] = { { -0.5f, -0.5f, 0.0f }, { 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } };
-                        QuadAsset.Vertices[1] = { {  0.5f, -0.5f, 0.0f }, { 1.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } };
-                        QuadAsset.Vertices[2] = { {  0.5f,  0.5f, 0.0f }, { 1.0f, 1.0f }, { 0.0f, 0.0f, 1.0f } };
-                        QuadAsset.Vertices[3] = { { -0.5f,  0.5f, 0.0f }, { 0.0f, 1.0f }, { 0.0f, 0.0f, 1.0f } };
-                        QuadAsset.IndexCount = 6;
-                        QuadAsset.Indices = (u32 *)OS_AllocateMemory(QuadAsset.IndexCount * sizeof(u32));
-                        QuadAsset.Indices[0] = 0;
-                        QuadAsset.Indices[1] = 1;
-                        QuadAsset.Indices[2] = 2;
-                        QuadAsset.Indices[3] = 2;
-                        QuadAsset.Indices[4] = 3;
-                        QuadAsset.Indices[5] = 0;
+                        FreeTextureAsset(&TextureAsset);
 
-                        mesh Mesh = GL_UploadMeshAsset(&QuadAsset);
-                        FreeMeshAsset(&QuadAsset);
-#else
-                        mesh_asset MeshAsset = { };
+                        mesh_asset MeshAsset;
                         LoadOBJ("assets\\meshes\\woman1.obj", &MeshAsset);
 
                         mesh Mesh = GL_UploadMeshAsset(&MeshAsset);
 
                         FreeMeshAsset(&MeshAsset);
-#endif
 
                         // TODO(philip): Move these to shader loading.
                         GLint ViewProjectionUniformLocation = glGetUniformLocation(Shader.Program, "ViewProjection");
@@ -662,17 +528,10 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         f32 CameraHorizontalSensitivity = 0.07f;
 
                         v3 CameraForward = V3(0.0f, 0.0f, -1.0f);
-#if !HEAD
-                        f32 CameraPitch = 0.0f;
-                        f32 CameraYaw = 0.0f;
-
-                        v3 CameraPosition = V3(0.0f, 0.0f, 2.0f);
-#else
-                        f32 CameraPitch = 0.0f;
-                        f32 CameraYaw = -45.0f;
 
                         v3 CameraPosition = V3(-20.0f, 0.0f, 20.0f);
-#endif
+                        f32 CameraPitch = 0.0f;
+                        f32 CameraYaw = -45.0f;
 
                         POINT CursorPositionBeforeCapture;
                         GetCursorPos(&CursorPositionBeforeCapture);
@@ -757,9 +616,6 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                             // TODO(philip): Pull mesh rendering into it's own function.
                             glBindVertexArray(Mesh.VertexArray);
 
-                            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-#if HEAD
                             for (u64 SubmeshIndex = 0;
                                  SubmeshIndex < Mesh.SubmeshCount;
                                  ++SubmeshIndex)
@@ -768,7 +624,6 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 glDrawElements(GL_TRIANGLES, Submesh->IndexCount, GL_UNSIGNED_INT,
                                                (GLvoid *)(Submesh->IndexOffset * sizeof(u32)));
                             }
-#endif
 
                             SwapBuffers(DeviceContext);
 

@@ -1,6 +1,10 @@
 #ifndef GFX_ASSET_H
 #define GFX_ASSET_H
 
+//
+// NOTE(philip): OBJ
+//
+
 struct index_set
 {
     u64 ID;
@@ -48,6 +52,41 @@ struct mesh_asset
 
     u64 SubmeshCount;
     submesh *Submeshes;
+};
+
+//
+// NOTE(philip): TGA
+//
+
+#pragma pack(push, 1)
+
+struct tga_header
+{
+    u8 IDLength;
+    u8 ColorMapType;
+    u8 ImageType;
+
+    u16 ColorMapFirstEntryIndex;
+    u16 ColorMapEntryCount;
+    u8 BitsPerColorMapEntry;
+
+    u16 OriginX;
+    u16 OriginY;
+    u16 Width;
+    u16 Height;
+    u8 BitsPerPixel;
+    u8 ImageDescriptor;
+};
+
+// TODO(philip): Static assert to make sure the size of this is always correct.
+
+#pragma pack(pop)
+
+struct texture_asset
+{
+    u8 *Data;
+    u32 Width;
+    u32 Height;
 };
 
 #endif
