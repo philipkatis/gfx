@@ -44,6 +44,91 @@ GL_LoadShaderModule(GLenum Type, char *Path)
     return Module;
 }
 
+function void
+GL_FreeShader(shader *Shader)
+{
+    Assert(Shader);
+
+    // TODO(philip): Only do this here in debug builds.
+    glDetachShader(Shader->Program, Shader->VertexModule);
+    glDetachShader(Shader->Program, Shader->PixelModule);
+
+    // TODO(philip): Only do this here in debug builds.
+    glDeleteShader(Shader->VertexModule);
+    glDeleteShader(Shader->PixelModule);
+
+    glDeleteProgram(Shader->Program);
+
+    Shader->Program = 0;
+
+    // TODO(philip): Only do this here in debug builds.
+    Shader->VertexModule = 0;
+    Shader->PixelModule = 0;
+}
+
+function shader
+GL_LoadShader(char *VertexModulePath, char *PixelModulePath)
+{
+    shader Shader = { };
+    Shader.Program = glCreateProgram();
+
+    Shader.VertexModule = GL_LoadShaderModule(GL_VERTEX_SHADER, VertexModulePath);
+    Shader.PixelModule = GL_LoadShaderModule(GL_FRAGMENT_SHADER, PixelModulePath);
+
+    glAttachShader(Shader.Program, Shader.VertexModule);
+    glAttachShader(Shader.Program, Shader.PixelModule);
+
+    GLint Status;
+
+    glLinkProgram(Shader.Program);
+    glGetProgramiv(Shader.Program, GL_LINK_STATUS, &Status);
+
+    if (Status == GL_FALSE)
+    {
+        // TODO(philip): Maybe remove this.
+        GLint InfoLogLength;
+        glGetProgramiv(Shader.Program, GL_INFO_LOG_LENGTH, &InfoLogLength);
+
+        Assert(InfoLogLength < 4096);
+
+        GLchar InfoLog[4096];
+        glGetProgramInfoLog(Shader.Program, 4096, &InfoLogLength, InfoLog);
+
+        // TODO(philip): Replace this with something like a message box?
+        OutputDebugStringA("Shader program linking failed!\n");
+        OutputDebugStringA(InfoLog);
+        OutputDebugStringA("\n");
+
+        GL_FreeShader(&Shader);
+    }
+
+    glValidateProgram(Shader.Program);
+    glGetProgramiv(Shader.Program, GL_VALIDATE_STATUS, &Status);
+
+    if (Status == GL_FALSE)
+    {
+        // TODO(philip): Maybe remove this.
+        GLint InfoLogLength;
+        glGetProgramiv(Shader.Program, GL_INFO_LOG_LENGTH, &InfoLogLength);
+
+        Assert(InfoLogLength < 4096);
+
+        GLchar InfoLog[4096];
+        glGetProgramInfoLog(Shader.Program, 4096, &InfoLogLength, InfoLog);
+
+        // TODO(philip): Replace this with something like a message box?
+        OutputDebugStringA("Shader program validation failed!\n");
+        OutputDebugStringA(InfoLog);
+        OutputDebugStringA("\n");
+
+        GL_FreeShader(&Shader);
+    }
+
+    // TODO(philip): Detach the shaders and delete them here in release builds.
+
+    return Shader;
+}
+
 function mesh
 GL_UploadMeshAsset(mesh_asset *Asset)
 {

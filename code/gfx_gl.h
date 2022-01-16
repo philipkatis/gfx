@@ -52,6 +52,7 @@ typedef void gl_link_program(GLuint program);
 typedef void gl_validate_program(GLuint program);
 typedef void gl_get_program_iv(GLuint program, GLenum pname, GLint *params);
 typedef void gl_get_program_info_log(GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog);
+typedef void gl_detach_shader(GLuint program, GLuint shader);
 typedef GLint gl_get_uniform_location(GLuint program, const GLchar *name);
 typedef void gl_use_program(GLuint program);
 typedef void gl_uniform_3fv(GLint location, GLsizei count, const GLfloat *value);
@@ -73,6 +74,7 @@ global gl_link_program *glLinkProgram = 0;
 global gl_validate_program *glValidateProgram = 0;
 global gl_get_program_iv *glGetProgramiv = 0;
 global gl_get_program_info_log *glGetProgramInfoLog = 0;
+global gl_detach_shader *glDetachShader = 0;
 global gl_get_uniform_location *glGetUniformLocation = 0;
 global gl_use_program *glUseProgram = 0;
 global gl_uniform_3fv *glUniform3fv = 0;
@@ -97,6 +99,16 @@ typedef void gl_draw_elements_base_vertex(GLenum mode, GLsizei count, GLenum typ
                                           GLint basevertex);
 
 global gl_draw_elements_base_vertex *glDrawElementsBaseVertex = 0;
+
+// TODO(philip): Move to another file.
+struct shader
+{
+    GLuint Program;\
+
+    // TODO(philip): Only keep these here for debug builds.
+    GLuint VertexModule;
+    GLuint PixelModule;
+};
 
 // TODO(philip): Move to another file.
 struct mesh

@@ -185,8 +185,10 @@ Win32_DisableCursor(HWND Window)
 
 global b32 IsControllingCamera = false;
 
+// TODO(philip): Pressing ALT seems to reset the cursor?
+
 function LRESULT
-Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
+Win32_WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
 {
     LRESULT Result = 0;
 
@@ -276,7 +278,7 @@ Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
 // TODO(philip): Documentation.
 // TODO(philip): Maybe return success or failure.
 function void
-Win32LoadWLGExtensions(HINSTANCE Instance)
+Win32_LoadWLGExtensions(HINSTANCE Instance)
 {
     LPCSTR WindowClassName = "gfx_dummy_win32_window_class";
 
@@ -359,7 +361,7 @@ Win32LoadWLGExtensions(HINSTANCE Instance)
 #define Load(Type, Name) Name = (Type *)wglGetProcAddress(#Name)
 
 function void
-Win32LoadGLFunctions(void)
+Win32_LoadGLFunctions(void)
 {
     // NOTE(philip): OpenGL 1.5
     Load(gl_gen_buffers,                    glGenBuffers);
@@ -380,6 +382,7 @@ Win32LoadGLFunctions(void)
     Load(gl_validate_program,               glValidateProgram);
     Load(gl_get_program_iv,                 glGetProgramiv);
     Load(gl_get_program_info_log,           glGetProgramInfoLog);
+    Load(gl_detach_shader,                  glDetachShader);
     Load(gl_get_uniform_location,           glGetUniformLocation);
     Load(gl_use_program,                    glUseProgram);
     Load(gl_uniform_3fv,                    glUniform3fv);
@@ -408,13 +411,13 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
     LARGE_INTEGER PerformanceCounterFrequency;
     QueryPerformanceFrequency(&PerformanceCounterFrequency);
 
-    Win32LoadWLGExtensions(Instance);
+    Win32_LoadWLGExtensions(Instance);
 
     LPCSTR WindowClassName = "gfx_win32_window_class";
 
     WNDCLASSA WindowClass = { };
     WindowClass.style = CS_VREDRAW | CS_HREDRAW | CS_OWNDC;
-    WindowClass.lpfnWndProc = Win32WindowProcedure;
+    WindowClass.lpfnWndProc = Win32_WindowProcedure;
     WindowClass.hInstance = Instance;
     WindowClass.lpszClassName = WindowClassName;
 
@@ -468,68 +471,10 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                     if (OpenGLContext)
                     {
                         wglMakeCurrent(DeviceContext, OpenGLContext);
+                        Win32_LoadGLFunctions();
 
-                        Win32LoadGLFunctions();
-
-                        GLuint VertexShaderModule = GL_LoadShaderModule(GL_VERTEX_SHADER,
-                                                                        "assets\\shaders\\gfx_simple_vs.glsl");
-                        GLuint PixelShaderModule = GL_LoadShaderModule(GL_FRAGMENT_SHADER,
-                                                                       "assets\\shaders\\gfx_simple_ps.glsl");
-
-                        GLint Status;
-
-                        // TODO(philip): Pull shader loading into it's own function.
-
-                        GLuint Program = glCreateProgram();
-
-                        glAttachShader(Program, VertexShaderModule);
-                        glAttachShader(Program, PixelShaderModule);
-
-                        glLinkProgram(Program);
-                        glGetProgramiv(Program, GL_LINK_STATUS, &Status);
-
-                        if (Status == GL_FALSE)
-                        {
-                            // TODO(philip): Maybe remove this.
-                            GLint Length;
-                            glGetProgramiv(Program, GL_INFO_LOG_LENGTH, &Length);
-
-                            Assert(Length < 4096);
-
-                            GLchar InfoLog[4096];
-                            glGetProgramInfoLog(Program, 4096, &Length, InfoLog);
-
-                            // TODO(philip): Replace this with something like a message box?
-                            OutputDebugStringA("Shader program linking failed!\n");
-                            OutputDebugStringA(InfoLog);
-                            OutputDebugStringA("\n");
-
-                            glDeleteProgram(Program);
-                            Program = 0;
-                        }
-
-                        glValidateProgram(Program);
-                        glGetProgramiv(Program, GL_VALIDATE_STATUS, &Status);
-
-                        if (Status == GL_FALSE)
-                        {
-                            // TODO(philip): Maybe remove this.
-                            GLint Length;
-                            glGetProgramiv(Program, GL_INFO_LOG_LENGTH, &Length);
-
-                            Assert(Length < 4096);
-
-                            GLchar InfoLog[4096];
-                            glGetProgramInfoLog(Program, 4096, &Length, InfoLog);
-
-                            // TODO(philip): Replace this with something like a message box?
-                            OutputDebugStringA("Shader program validation failed!\n");
-                            OutputDebugStringA(InfoLog);
-                            OutputDebugStringA("\n");
-
-                            glDeleteProgram(Program);
-                            Program = 0;
-                        }
+                        shader Shader = GL_LoadShader("assets\\shaders\\gfx_simple_vs.glsl",
+                                                      "assets\\shaders\\gfx_simple_ps.glsl");
 
                         mesh_asset MeshAsset = { };
                         LoadOBJ("assets\\meshes\\woman1.obj", &MeshAsset);
@@ -538,14 +483,16 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                         FreeMeshAsset(&MeshAsset);
 
-                        GLint ViewProjectionUniformLocation = glGetUniformLocation(Program, "ViewProjection");
-                        GLint TransformUniformLocation = glGetUniformLocation(Program, "Transform");
-                        GLint CameraDirectionUniformLocation = glGetUniformLocation(Program, "CameraDirection");
+                        // TODO(philip): Move these to shader loading.
+                        GLint ViewProjectionUniformLocation = glGetUniformLocation(Shader.Program, "ViewProjection");
+                        GLint TransformUniformLocation = glGetUniformLocation(Shader.Program, "Transform");
+                        GLint CameraDirectionUniformLocation = glGetUniformLocation(Shader.Program, "CameraDirection");
 
-                        glUseProgram(Program);
+                        glUseProgram(Shader.Program);
 
                         glEnable(GL_DEPTH_TEST);
 
+                        // TODO(philip): Replace with window size.
                         RECT ClientAreaDimensions;
                         GetClientRect(Window, &ClientAreaDimensions);
 
@@ -558,8 +505,8 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                         ShowWindow(Window, SW_SHOW);
 
-                        f32 CameraVerticalSensitivity = 0.1f;
-                        f32 CameraHorizontalSensitivity = 0.1f;
+                        f32 CameraVerticalSensitivity = 0.05f;
+                        f32 CameraHorizontalSensitivity = 0.07f;
 
                         v3 CameraForward = V3(0.0f, 0.0f, -1.0f);
                         f32 CameraPitch = 0.0f;
@@ -700,12 +647,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         }
 
                         GL_FreeMesh(&Mesh);
-
-                        glDeleteProgram(Program);
-
-                        // TODO(philip): Move shader deletion after program linking.
-                        glDeleteShader(PixelShaderModule);
-                        glDeleteShader(VertexShaderModule);
+                        GL_FreeShader(&Shader);
                     }
                     else
                     {
