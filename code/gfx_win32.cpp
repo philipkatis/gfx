@@ -85,176 +85,105 @@ OS_FreeFileMemory(buffer *Buffer)
     Buffer->Size = 0;
 }
 
-// TODO(philip): Is this a good plan?
-struct win32_state
-{
-    b32 IsCursorHidden;
-    iv2 CursorPositionToRestore;
-
-    b32 UseRawInput;
-    iv2 RawCursorPosition;
-};
-
-// TODO(philip): Should this be global?
-global win32_state Win32State = { };
-
 function void
-Win32InitializeState(void)
+Win32_InitializeState(void)
 {
-    // TODO(philip): If raw input is enabled by default, actually enable it.
-    Win32State.UseRawInput = false;
-    Win32State.IsCursorHidden = false;
+    Win32State.IsCursorEnabled = true;
 }
 
 function iv2
-Win32GetWindowSize(HWND Window)
+Win32_GetWindowSize(HWND Window)
 {
-    RECT Dimensions;
-    GetClientRect(Window, &Dimensions);
+    RECT ClientRect;
+    GetClientRect(Window, &ClientRect);
 
-    iv2 Size = IV2((Dimensions.right - Dimensions.left), (Dimensions.bottom - Dimensions.top));
+    iv2 Size = IV2((ClientRect.right - ClientRect.left), (ClientRect.bottom - ClientRect.top));
     return Size;
 }
 
 function iv2
-Win32GetCursorPosition(HWND Window)
+Win32_GetCursorPosition(HWND Window)
 {
-    iv2 Position;
+    POINT ScreenSpacePosition;
+    GetCursorPos(&ScreenSpacePosition);
 
-    if (Win32State.UseRawInput)
-    {
-        Position = Win32State.RawCursorPosition;
-    }
-    else
-    {
-        POINT ScreenSpacePosition;
-        GetCursorPos(&ScreenSpacePosition);
+    POINT ClientSpacePosition = ScreenSpacePosition;
+    ScreenToClient(Window, &ClientSpacePosition);
 
-        POINT ClientSpacePosition = ScreenSpacePosition;
-        ScreenToClient(Window, &ClientSpacePosition);
-
-        Position = IV2(ClientSpacePosition.x, ClientSpacePosition.y);
-    }
-
+    iv2 Position = IV2(ClientSpacePosition.x, ClientSpacePosition.y);
     return Position;
 }
 
 function void
-Win32SetCursorPosition(HWND Window, iv2 Position)
+Win32_SetCursorPosition(HWND Window, iv2 Position)
 {
-    POINT ScreenSpacePosition;
+    POINT ScreenSpacePosition = { };
     ScreenSpacePosition.x = Position.X;
     ScreenSpacePosition.y = Position.Y;
-    ClientToScreen(Window, &ScreenSpacePosition);
 
+    ClientToScreen(Window, &ScreenSpacePosition);
     SetCursorPos(ScreenSpacePosition.x, ScreenSpacePosition.y);
 }
 
 function void
-Win32HideCursor(HWND Window)
+Win32_RestrictCursorToWindow(HWND Window)
 {
-    if (!Win32State.IsCursorHidden)
-    {
-        iv2 WindowSize = Win32GetWindowSize(Window);
-        iv2 WindowCenter = IV2((WindowSize.X / 2), (WindowSize.Y / 2));
+    RECT ClientSpaceClientRect;
+    GetClientRect(Window, &ClientSpaceClientRect);
 
-        // NOTE(philip): We store the position of the cursor before we disable it. This way we can restore back to it,
-        // whenever we re-enable it.
-        Win32State.CursorPositionToRestore = Win32GetCursorPosition(Window);
+    RECT ScreenSpaceClientRect = ClientSpaceClientRect;
+    ClientToScreen(Window, (POINT *)&ScreenSpaceClientRect.left);
+    ClientToScreen(Window, (POINT *)&ScreenSpaceClientRect.right);
 
-        // NOTE(philip): Hide the windows cursor.
-        ShowCursor(false);
-
-        // NOTE(philip): Center the cursor on the window.
-        Win32SetCursorPosition(Window, WindowCenter);
-
-        // NOTE(philip): Restrict the cursor within the bounds of the client area.
-        {
-            RECT ClientSpaceClientRect = { };
-            ClientSpaceClientRect.right = WindowSize.X;
-            ClientSpaceClientRect.bottom = WindowSize.Y;
-
-            // NOTE(philip): Since a RECT is essectialy two points, we convert them to screen space separately.
-            RECT ScreenSpaceClientRect = ClientSpaceClientRect;
-            ClientToScreen(Window, (POINT *)&ScreenSpaceClientRect.left);
-            ClientToScreen(Window, (POINT *)&ScreenSpaceClientRect.right);
-
-            ClipCursor(&ScreenSpaceClientRect);
-        }
-
-        Win32State.IsCursorHidden = true;
-    }
+    ClipCursor(&ScreenSpaceClientRect);
 }
 
 function void
-Win32RestoreCursor(HWND Window)
+Win32_EnableCursor(HWND Window)
 {
-    if (Win32State.IsCursorHidden)
+    if (!Win32State.IsCursorEnabled)
     {
         ClipCursor(0);
-        Win32SetCursorPosition(Window, Win32State.CursorPositionToRestore);
-        ShowCursor(true);
+        Win32_SetCursorPosition(Window, Win32State.CursorPositionToRestore);
+        SetCursor(LoadCursor(0, IDC_ARROW));
 
-        Win32State.IsCursorHidden = false;
+        RAWINPUTDEVICE Mouse = { };
+        Mouse.usUsagePage = 0x01;
+        Mouse.usUsage = 0x02;
+        Mouse.dwFlags = RIDEV_REMOVE;
+
+        Assert(RegisterRawInputDevices(&Mouse, 1, sizeof(RAWINPUTDEVICE)));
+
+        Win32State.IsCursorEnabled = true;
     }
 }
 
 function void
-Win32EnableRawInput(HWND Window)
+Win32_DisableCursor(HWND Window)
 {
-    Win32HideCursor(Window);
-
-    // NOTE(philip): Enable raw input from the mouse.
-    // TODO(philip): Probably we want to use raw input for the keyboard and mouse buttons as well.
-    // TODO(philip): Ignore legacy messages.
-    RAWINPUTDEVICE MouseDevice = { };
-    MouseDevice.usUsagePage = 0x01; // NOTE(philip): HID_USAGE_PAGE_GENERIC
-    MouseDevice.usUsage = 0x02; // NOTE(philip): HID_USAGE_GENERIC_MOUSE
-    MouseDevice.hwndTarget = Window;
-
-    if (!RegisterRawInputDevices(&MouseDevice, 1, sizeof(RAWINPUTDEVICE)))
+    if (Win32State.IsCursorEnabled)
     {
-        // TODO(philip): Error message.
+        iv2 WindowSize = Win32_GetWindowSize(Window);
+        iv2 WindowCenter = IV2((WindowSize.X / 2), (WindowSize.Y / 2));
+
+        Win32State.CursorPositionToRestore = Win32_GetCursorPosition(Window);
+        SetCursor(0);
+
+        Win32_SetCursorPosition(Window, WindowCenter);
+        Win32_RestrictCursorToWindow(Window);
+
+        RAWINPUTDEVICE Mouse = { };
+        Mouse.usUsagePage = 0x01;
+        Mouse.usUsage = 0x02;
+        Mouse.hwndTarget = Window;
+
+        Assert(RegisterRawInputDevices(&Mouse, 1, sizeof(RAWINPUTDEVICE)));
+
+        Win32State.IsCursorEnabled = false;
     }
 }
 
-function void
-Win32DisableRawInput(HWND Window)
-{
-    // NOTE(philip): Disable raw input from the mouse.
-    // TODO(philip): Probably we want to use raw input for the keyboard and mouse buttons as well.
-    // TODO(philip): Ignore legacy messages.
-    RAWINPUTDEVICE MouseDevice = { };
-    MouseDevice.usUsagePage = 0x01; // NOTE(philip): HID_USAGE_PAGE_GENERIC
-    MouseDevice.usUsage = 0x02; // NOTE(philip): HID_USAGE_GENERIC_MOUSE
-    MouseDevice.dwFlags = RIDEV_REMOVE;
-    MouseDevice.hwndTarget = 0;
-
-    if (!RegisterRawInputDevices(&MouseDevice, 1, sizeof(RAWINPUTDEVICE)))
-    {
-        // TODO(philip): Error message.
-    }
-
-    Win32RestoreCursor(Window);
-}
-
-function void
-Win32SetRawInput(HWND Window, b32 Enabled)
-{
-    if (Win32State.UseRawInput != Enabled)
-    {
-        if (Enabled)
-        {
-            Win32EnableRawInput(Window);
-        }
-        else
-        {
-            Win32DisableRawInput(Window);
-        }
-
-        Win32State.UseRawInput = Enabled;
-    }
-}
+global b32 IsControllingCamera = false;
 
 function LRESULT
 Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
@@ -263,49 +192,66 @@ Win32WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
 
     switch (Message)
     {
-        // TODO(philip): Close the application when we press escape.
+        case WM_LBUTTONDOWN:
+        {
+            if (!IsControllingCamera)
+            {
+                Win32_DisableCursor(Window);
+                IsControllingCamera = true;
+            }
+        } break;
+
+        case WM_KEYDOWN:
+        {
+            if (WParam == VK_ESCAPE)
+            {
+                if (IsControllingCamera)
+                {
+                    Win32_EnableCursor(Window);
+                    IsControllingCamera = false;
+                }
+
+                // TODO(philip): Close the application when we press escape.
+            }
+        } break;
 
         case WM_KILLFOCUS:
         {
-            if (Win32State.UseRawInput)
+            if (IsControllingCamera)
             {
-                Win32DisableRawInput(Window);
+                Win32_EnableCursor(Window);
             }
         } break;
 
         case WM_SETFOCUS:
         {
-            if (Win32State.UseRawInput)
+            if (IsControllingCamera)
             {
-                Win32EnableRawInput(Window);
+                Win32_DisableCursor(Window);
             }
         } break;
 
         case WM_INPUT:
         {
-            UINT DataSize;
-            GetRawInputData((HRAWINPUT)LParam, RID_INPUT, 0, &DataSize, sizeof(RAWINPUTHEADER));
+            Assert(!Win32State.IsCursorEnabled);
 
-            // TODO(philip): Replace with a memory arena.
-            void *Data = OS_AllocateMemory(DataSize);
-            GetRawInputData((HRAWINPUT)LParam, RID_INPUT, Data, &DataSize, sizeof(RAWINPUTHEADER));
+            HRAWINPUT InputHandle = (HRAWINPUT)LParam;
+            UINT InputDataSize;
+            Assert(GetRawInputData(InputHandle, RID_INPUT, 0, &InputDataSize, sizeof(RAWINPUTHEADER)) == 0);
 
-            RAWINPUT *Input = (RAWINPUT *)Data;
-            if (Input->header.dwType == RIM_TYPEMOUSE)
-            {
-                RAWMOUSE *Mouse = &Input->data.mouse;
+            void *InputData = OS_AllocateMemory(InputDataSize);
+            Assert(GetRawInputData(InputHandle, RID_INPUT, InputData, &InputDataSize, sizeof(RAWINPUTHEADER)) ==
+                   InputDataSize);
 
-                iv2 CursorPositionDelta = IV2(Mouse->lLastX, Mouse->lLastY);
-                if (Mouse->usFlags & MOUSE_MOVE_ABSOLUTE)
-                {
-                    CursorPositionDelta -= Win32State.RawCursorPosition;
-                }
+            RAWINPUT *Input = (RAWINPUT *)InputData;
+            Assert(Input->header.dwType == RIM_TYPEMOUSE);
 
-                Win32State.RawCursorPosition.X -= CursorPositionDelta.X;
-                Win32State.RawCursorPosition.Y += CursorPositionDelta.Y;
-            }
+            RAWMOUSE *Mouse = &Input->data.mouse;
+            Assert(Mouse->usFlags == MOUSE_MOVE_RELATIVE);
 
-            OS_FreeMemory(Data);
+            Win32State.RawCursorPosition += IV2(Mouse->lLastX, Mouse->lLastY);
+
+            OS_FreeMemory(InputData);
         } break;
 
         case WM_CLOSE:
@@ -456,8 +402,11 @@ Win32LoadGLFunctions(void)
 s32
 WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 ShowCMD)
 {
-    // IMPORTANT(philip): Always the first thing that happens.
-    Win32InitializeState();
+    // NOTE(philip): DO NOT MOVE THIS.
+    Win32_InitializeState();
+
+    LARGE_INTEGER PerformanceCounterFrequency;
+    QueryPerformanceFrequency(&PerformanceCounterFrequency);
 
     Win32LoadWLGExtensions(Instance);
 
@@ -616,64 +565,30 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         f32 CameraPitch = 0.0f;
                         f32 CameraYaw = -45.0f;
 
-                        f32 CameraMovementSpeed = 0.15f;
+                        f32 CameraMovementSpeed = 9.0f;
                         v3 CameraPosition = V3(-20.0f, 0.0f, 20.0f);
 
-                        b32 ControlCamera = false;
-                        iv2 PreviousCursorPosition = { };
+                        POINT CursorPositionBeforeCapture;
+                        GetCursorPos(&CursorPositionBeforeCapture);
 
                         wglSwapIntervalEXT(1);
 
+                        LARGE_INTEGER PreviousFrameEndTicks;
+                        QueryPerformanceCounter(&PreviousFrameEndTicks);
+                        iv2 LastCursorPosition = { };
+
+                        f32 DeltaTime = 0.0f;
+
                         for (;;)
                         {
-                            b32 IsExitRequested = false;
-
-                            MSG Message;
-                            while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE))
+                            if (IsControllingCamera)
                             {
-                                if (Message.message == WM_QUIT)
-                                {
-                                    IsExitRequested = true;
-                                    break;
-                                }
+                                iv2 CursorPosition = Win32State.RawCursorPosition;
+                                iv2 CursorPositionDelta = CursorPosition - LastCursorPosition;
+                                LastCursorPosition = CursorPosition;
 
-                                TranslateMessage(&Message);
-                                DispatchMessageA(&Message);
-                            }
-
-                            if (IsExitRequested)
-                            {
-                                break;
-                            }
-
-                            if (GetKeyState(VK_LBUTTON) & 0x8000)
-                            {
-                                if (!ControlCamera)
-                                {
-                                    Win32SetRawInput(Window, true);
-                                    ControlCamera = true;
-                                }
-                            }
-
-                            if (GetKeyState(VK_ESCAPE) & 0x8000)
-                            {
-                                if (ControlCamera)
-                                {
-                                    Win32SetRawInput(Window, false);
-                                    ControlCamera = false;
-                                }
-                            }
-
-                            if (ControlCamera)
-                            {
-                                iv2 CursorPosition = Win32GetCursorPosition(Window);
-                                iv2 CursorPositionDelta = PreviousCursorPosition - CursorPosition;
-                                PreviousCursorPosition = CursorPosition;
-
-                                // TODO(philip): Integrate time.
-                                // TODO(philip): Clamp these.
-                                CameraPitch += CursorPositionDelta.Y * CameraVerticalSensitivity;
-                                CameraYaw -= CursorPositionDelta.X * CameraHorizontalSensitivity;
+                                CameraYaw += -CursorPositionDelta.X * CameraHorizontalSensitivity;
+                                CameraPitch += -CursorPositionDelta.Y * CameraVerticalSensitivity;
                             }
 
                             v3 CameraRight = Normalize(Cross(CameraForward, V3(0.0f, 1.0f, 0.0f)));
@@ -683,46 +598,38 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                             CameraForward = Normalize(RotateV3(V3(0.0f, 0.0f, -1.0f), CameraRotation));
 
-                            if (ControlCamera)
-                            {
-                                // TODO(philip): Should the forward and right camera movement vectors be the same
-                                // as the rotation ones, or the world ones.
+                            // TODO(philip): Should the forward and right camera movement vectors be the same
+                            // as the rotation ones, or the world ones.
 
+                            if (IsControllingCamera)
+                            {
                                 if (GetKeyState(0x57) & 0x8000)
                                 {
                                     // NOTE(philip): W key is pressed.
-
-                                    // TODO(philip): Integrate time.
-                                    CameraPosition += CameraForward * CameraMovementSpeed;
+                                    CameraPosition += CameraForward * CameraMovementSpeed * DeltaTime;
                                 }
 
                                 if (GetKeyState(0x53) & 0x8000)
                                 {
                                     // NOTE(philip): S key is pressed.
-
-                                    // TODO(philip): Integrate time.
-                                    CameraPosition -= CameraForward * CameraMovementSpeed;
+                                    CameraPosition -= CameraForward * CameraMovementSpeed * DeltaTime;
                                 }
 
                                 if (GetKeyState(0x41) & 0x8000)
                                 {
                                     // NOTE(philip): A key is pressed.
-
-                                    // TODO(philip): Integrate time.
-                                    CameraPosition -= CameraRight * CameraMovementSpeed;
+                                    CameraPosition -= CameraRight * CameraMovementSpeed * DeltaTime;
                                 }
 
                                 if (GetKeyState(0x44) & 0x8000)
                                 {
                                     // NOTE(philip): D key is pressed.
-
-                                    // TODO(philip): Integrate time.
-                                    CameraPosition += CameraRight * CameraMovementSpeed;
+                                    CameraPosition += CameraRight * CameraMovementSpeed * DeltaTime;
                                 }
-                            }
 
-                            // NOTE(philip): Lock the camera on the XZ plane.
-                            CameraPosition.Y = 0.0f;
+                                // NOTE(philip): Lock the camera on the XZ plane.
+                                CameraPosition.Y = 0.0f;
+                            }
 
                             // TODO(philip): Overload the negative operator for v3.
                             m4 View = Translate(V3(-CameraPosition.X, -CameraPosition.Y, -CameraPosition.Z)) *
@@ -754,6 +661,42 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                             }
 
                             SwapBuffers(DeviceContext);
+
+                            b32 IsExitRequested = false;
+
+                            MSG Message;
+                            while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE))
+                            {
+                                if (Message.message == WM_QUIT)
+                                {
+                                    IsExitRequested = true;
+                                    break;
+                                }
+
+                                TranslateMessage(&Message);
+                                DispatchMessageA(&Message);
+                            }
+
+                            if (IsExitRequested)
+                            {
+                                break;
+                            }
+
+                            LARGE_INTEGER FrameEndTicks;
+                            QueryPerformanceCounter(&FrameEndTicks);
+
+                            u64 ElapsedTicks = (FrameEndTicks.QuadPart - PreviousFrameEndTicks.QuadPart);
+                            u64 ElapsedUS = ((ElapsedTicks * 1000000) / PerformanceCounterFrequency.QuadPart);
+
+                            DeltaTime = ((f32)ElapsedUS / 1000000.0f);
+
+                            char Title[1024];
+                            sprintf(Title, "gfx - Frame Time: %.2f ms", ((f32)ElapsedUS / 1000.0f));
+                            SetWindowText(Window, Title);
+
+                            // TODO(philip): Print the frame time on the window title.
+
+                            PreviousFrameEndTicks = FrameEndTicks;
                         }
 
                         GL_FreeMesh(&Mesh);

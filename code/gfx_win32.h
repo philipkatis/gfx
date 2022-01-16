@@ -53,4 +53,17 @@ typedef BOOL wgl_swap_interval_ext(int interval);
 
 global wgl_swap_interval_ext *wglSwapIntervalEXT = 0;
 
+//
+// NOTE(philip): Win32 Structures
+//
+
+struct win32_state
+{
+    b32 IsCursorEnabled;
+    iv2 CursorPositionToRestore;
+    iv2 RawCursorPosition;
+};
+
+global win32_state Win32State = { };
+
 #endif

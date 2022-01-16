@@ -54,7 +54,8 @@ IV2(s32 X, s32 Y)
 function iv2
 operator-(iv2& Left, iv2& Right)
 {
-    iv2 Result;
+    iv2 Result = { };
+
     Result.X = Left.X - Right.X;
     Result.Y = Left.Y - Right.Y;
 
@@ -62,10 +63,10 @@ operator-(iv2& Left, iv2& Right)
 }
 
 function iv2&
-operator-=(iv2& Left, iv2& Right)
+operator+=(iv2& Left, iv2& Right)
 {
-    Left.X -= Right.X;
-    Left.Y -= Right.Y;
+    Left.X += Right.X;
+    Left.Y += Right.Y;
 
     return Left;
 }
