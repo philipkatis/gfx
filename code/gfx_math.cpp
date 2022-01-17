@@ -37,6 +37,23 @@ SquareRoot(f32 Value)
     return Result;
 }
 
+function f32
+Clamp(f32 Value, f32 Min, f32 Max)
+{
+    f32 Result = Value;
+
+    if (Value < Min)
+    {
+        Result = Min;
+    }
+    else if (Value > Max)
+    {
+        Result = Max;
+    }
+
+    return Result;
+}
+
 //
 // NOTE(philip): 2-Component Integer Vector
 //
@@ -44,7 +61,8 @@ SquareRoot(f32 Value)
 function iv2
 IV2(s32 X, s32 Y)
 {
-    iv2 Result;
+    iv2 Result = { };
+
     Result.X = X;
     Result.Y = Y;
 
@@ -120,6 +138,18 @@ Cross(v3 Left, v3 Right)
 }
 
 function v3
+operator-(v3& Vector)
+{
+    v3 Result = { };
+
+    Result.X = -Vector.X;
+    Result.Y = -Vector.Y;
+    Result.Z = -Vector.Z;
+
+    return Result;
+}
+
+function v3
 operator*(v3& Vector, f32 Scalar)
 {
     v3 Result = { };
@@ -173,11 +203,10 @@ AxisAngleRotation(v3 Axis, f32 Angle)
 {
     quat Result = { };
 
+    Axis = Normalize(Axis);
     f32 HalfAngle = (Angle / 2.0f);
     f32 HalfAngleSin = Sin(HalfAngle);
     f32 HalfAngleCos = Cos(HalfAngle);
-
-    Axis = Normalize(Axis);
 
     Result.X = Axis.X * HalfAngleSin;
     Result.Y = Axis.Y * HalfAngleSin;
@@ -225,14 +254,14 @@ RotateV3(v3 Vector, quat Rotation)
 //
 
 function m4
-M4(f32 Diagonal = 0.0f)
+IdentityM4(void)
 {
     m4 Result = { };
 
-    Result.Elements[0 + 0 * 4] = Diagonal;
-    Result.Elements[1 + 1 * 4] = Diagonal;
-    Result.Elements[2 + 2 * 4] = Diagonal;
-    Result.Elements[3 + 3 * 4] = Diagonal;
+    Result.Elements[0 + 0 * 4] = 1.0f;
+    Result.Elements[1 + 1 * 4] = 1.0f;
+    Result.Elements[2 + 2 * 4] = 1.0f;
+    Result.Elements[3 + 3 * 4] = 1.0f;
 
     return Result;
 }
@@ -258,7 +287,7 @@ Perspective(f32 AspectRatio, f32 VerticalFOV, f32 NearPlane, f32 FarPlane)
 function m4
 Translate(v3 Translation)
 {
-    m4 Result = M4(1.0f);
+    m4 Result = IdentityM4();
 
     Result.Elements[0 + 3 * 4] = Translation.X;
     Result.Elements[1 + 3 * 4] = Translation.Y;
@@ -270,7 +299,7 @@ Translate(v3 Translation)
 function m4
 Scale(v3 Scale)
 {
-    m4 Result = M4(1.0f);
+    m4 Result = IdentityM4();
 
     Result.Elements[0 + 0 * 4] = Scale.X;
     Result.Elements[1 + 1 * 4] = Scale.Y;

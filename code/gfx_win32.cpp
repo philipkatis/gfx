@@ -241,6 +241,7 @@ Win32_WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
             UINT InputDataSize;
             Assert(GetRawInputData(InputHandle, RID_INPUT, 0, &InputDataSize, sizeof(RAWINPUTHEADER)) == 0);
 
+            // TODO(philip): Switch to a memory arena.
             void *InputData = OS_AllocateMemory(InputDataSize);
             Assert(GetRawInputData(InputHandle, RID_INPUT, InputData, &InputDataSize, sizeof(RAWINPUTHEADER)) ==
                    InputDataSize);
@@ -274,6 +275,8 @@ Win32_WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
 
     return Result;
 }
+
+#define Load(Type, Name) Name = (Type *)wglGetProcAddress(#Name)
 
 // TODO(philip): Documentation.
 // TODO(philip): Maybe return success or failure.
@@ -318,11 +321,10 @@ Win32_LoadWLGExtensions(HINSTANCE Instance)
                     {
                         wglMakeCurrent(DeviceContext, OpenGLContext);
 
-                        wglChoosePixelFormatARB = (wgl_choose_pixel_format_arb *)wglGetProcAddress("wglChoosePixelFormatARB");
-                        wglCreateContextAttribsARB = (wgl_create_context_attribs_arb *)wglGetProcAddress("wglCreateContextAttribsARB");
-                        wglSwapIntervalEXT = (wgl_swap_interval_ext *)wglGetProcAddress("wglSwapIntervalEXT");
-
                         // TODO(philip): Investigate what we should do if loading one of these fails.
+                        Load(wgl_choose_pixel_format_arb,        wglChoosePixelFormatARB);
+                        Load(wgl_create_context_attribs_arb,     wglCreateContextAttribsARB);
+                        Load(wgl_swap_interval_ext,              wglSwapIntervalEXT);
                     }
                     else
                     {
@@ -357,8 +359,6 @@ Win32_LoadWLGExtensions(HINSTANCE Instance)
 
     UnregisterClassA(WindowClassName, Instance);
 }
-
-#define Load(Type, Name) Name = (Type *)wglGetProcAddress(#Name)
 
 function void
 Win32_LoadGLFunctions(void)
@@ -479,6 +479,11 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         shader Shader = GL_LoadShader("assets\\shaders\\gfx_simple_vs.glsl",
                                                       "assets\\shaders\\gfx_simple_ps.glsl");
 
+                        // TODO(philip): Move these to shader loading.
+                        GLint ViewProjectionUniformLocation = glGetUniformLocation(Shader.Program, "ViewProjection");
+                        GLint TransformUniformLocation = glGetUniformLocation(Shader.Program, "Transform");
+                        GLint CameraDirectionUniformLocation = glGetUniformLocation(Shader.Program, "CameraDirection");
+
                         texture_asset TextureAsset;
                         LoadTGA("assets\\meshes\\head.tga", &TextureAsset);
 
@@ -487,8 +492,8 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         GLuint Texture;
                         glGenTextures(1, &Texture);
                         glBindTexture(GL_TEXTURE_2D, Texture);
-                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
                         switch (TextureAsset.Format)
                         {
@@ -514,27 +519,15 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                         FreeMeshAsset(&MeshAsset);
 
-                        // TODO(philip): Move these to shader loading.
-                        GLint ViewProjectionUniformLocation = glGetUniformLocation(Shader.Program, "ViewProjection");
-                        GLint TransformUniformLocation = glGetUniformLocation(Shader.Program, "Transform");
-                        GLint CameraDirectionUniformLocation = glGetUniformLocation(Shader.Program, "CameraDirection");
-
-                        glUseProgram(Shader.Program);
-
-                        glEnable(GL_DEPTH_TEST);
-
-                        // TODO(philip): Replace with window size.
-                        RECT ClientAreaDimensions;
-                        GetClientRect(Window, &ClientAreaDimensions);
-
-                        LONG ClientAreaWidth = (ClientAreaDimensions.right - ClientAreaDimensions.left);
-                        LONG ClientAreaHeight = (ClientAreaDimensions.bottom - ClientAreaDimensions.top);
-
                         // TODO(philip): Support resizing.
-                        f32 AspectRatio = ((f32)ClientAreaWidth / (f32)ClientAreaHeight);
+                        iv2 WindowSize = Win32_GetWindowSize(Window);
+                        f32 AspectRatio = ((f32)WindowSize.X / (f32)WindowSize.Y);
+
                         m4 Projection = Perspective(AspectRatio, ToRadians(45.0f), 0.01f, 10000.0f);
 
-                        ShowWindow(Window, SW_SHOW);
+                        m4 Transform = Scale(V3(0.05f, 0.05f, 0.05f)) *
+                            ToM4(AxisAngleRotation(V3(0.0f, 1.0f, 0.0f), ToRadians(-90.0f))) *
+                            Translate(V3(0.0f, 0.0f, 0.0f));
 
                         f32 CameraMovementSpeed = 9.0f;
                         f32 CameraVerticalSensitivity = 0.05f;
@@ -546,19 +539,42 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         f32 CameraPitch = 0.0f;
                         f32 CameraYaw = -45.0f;
 
-                        POINT CursorPositionBeforeCapture;
-                        GetCursorPos(&CursorPositionBeforeCapture);
+                        glEnable(GL_DEPTH_TEST);
+
+                        glUseProgram(Shader.Program);
+                        glUniformMatrix4fv(TransformUniformLocation, 1, GL_FALSE, (GLfloat *)&Transform);
 
                         wglSwapIntervalEXT(1);
+                        ShowWindow(Window, SW_SHOW);
 
                         LARGE_INTEGER PreviousFrameEndTicks;
                         QueryPerformanceCounter(&PreviousFrameEndTicks);
-                        iv2 LastCursorPosition = { };
 
+                        iv2 LastCursorPosition = { };
                         f32 DeltaTime = 0.0f;
 
                         for (;;)
                         {
+                            b32 IsExitRequested = false;
+
+                            MSG Message;
+                            while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE))
+                            {
+                                if (Message.message == WM_QUIT)
+                                {
+                                    IsExitRequested = true;
+                                    break;
+                                }
+
+                                TranslateMessage(&Message);
+                                DispatchMessageA(&Message);
+                            }
+
+                            if (IsExitRequested)
+                            {
+                                break;
+                            }
+
                             if (IsControllingCamera)
                             {
                                 iv2 CursorPosition = Win32State.RawCursorPosition;
@@ -566,7 +582,11 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 LastCursorPosition = CursorPosition;
 
                                 CameraYaw += -CursorPositionDelta.X * CameraHorizontalSensitivity;
+
                                 CameraPitch += -CursorPositionDelta.Y * CameraVerticalSensitivity;
+
+                                // TODO(philip): Why?
+                                CameraPitch = Clamp(CameraPitch, -55.0f, 55.0f);
                             }
 
                             v3 CameraRight = Normalize(Cross(CameraForward, V3(0.0f, 1.0f, 0.0f)));
@@ -575,9 +595,6 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 AxisAngleRotation(V3(0.0f, 1.0f, 0.0f), ToRadians(CameraYaw));
 
                             CameraForward = Normalize(RotateV3(V3(0.0f, 0.0f, -1.0f), CameraRotation));
-
-                            // TODO(philip): Should the forward and right camera movement vectors be the same
-                            // as the rotation ones, or the world ones.
 
                             if (IsControllingCamera)
                             {
@@ -604,28 +621,17 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                     // NOTE(philip): D key is pressed.
                                     CameraPosition += CameraRight * CameraMovementSpeed * DeltaTime;
                                 }
-
-                                // NOTE(philip): Lock the camera on the XZ plane.
-                                //CameraPosition.Y = 0.0f;
                             }
 
-                            // TODO(philip): Overload the negative operator for v3.
-                            m4 View = Translate(V3(-CameraPosition.X, -CameraPosition.Y, -CameraPosition.Z)) *
-                                ToM4(Conjugate(CameraRotation));
-
+                            m4 View = Translate(-CameraPosition) * ToM4(Conjugate(CameraRotation));
                             m4 ViewProjection = View * Projection;
-
-                            // TODO(philip): Bring back IdentityM4().
-                            m4 Transform = Scale(V3(0.05f, 0.05f, 0.05f)) *
-                                ToM4(AxisAngleRotation(V3(0.0f, 1.0f, 0.0f), ToRadians(-90.0f))) *
-                                Translate(V3(0.0f, 0.0f, 0.0f));
 
                             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
                             glUniformMatrix4fv(ViewProjectionUniformLocation, 1, GL_FALSE,
                                                (GLfloat *)&ViewProjection);
-                            glUniformMatrix4fv(TransformUniformLocation, 1, GL_FALSE, (GLfloat *)&Transform);
                             glUniform3fv(CameraDirectionUniformLocation, 1, (GLfloat *)&CameraForward);
+
                             // TODO(philip): Pull mesh rendering into it's own function.
                             glBindVertexArray(Mesh.VertexArray);
 
@@ -640,26 +646,6 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                             SwapBuffers(DeviceContext);
 
-                            b32 IsExitRequested = false;
-
-                            MSG Message;
-                            while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE))
-                            {
-                                if (Message.message == WM_QUIT)
-                                {
-                                    IsExitRequested = true;
-                                    break;
-                                }
-
-                                TranslateMessage(&Message);
-                                DispatchMessageA(&Message);
-                            }
-
-                            if (IsExitRequested)
-                            {
-                                break;
-                            }
-
                             LARGE_INTEGER FrameEndTicks;
                             QueryPerformanceCounter(&FrameEndTicks);
 
@@ -671,8 +657,6 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                             char Title[1024];
                             sprintf(Title, "gfx - Frame Time: %.2f ms", ((f32)ElapsedUS / 1000.0f));
                             SetWindowText(Window, Title);
-
-                            // TODO(philip): Print the frame time on the window title.
 
                             PreviousFrameEndTicks = FrameEndTicks;
                         }
@@ -708,4 +692,4 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
     }
 
     return 0;
-};
+}
