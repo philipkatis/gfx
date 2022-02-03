@@ -7,7 +7,7 @@ GL_LoadShaderModule(GLenum Type, char *Path)
 
     // TODO(philip): Move file loading out of here.
     buffer FileData;
-    if (OS_ReadEntireFile(Path, &FileData))
+    if (Platform.ReadEntireFile(Path, &FileData))
     {
         Module = glCreateShader(Type);
 
@@ -38,7 +38,7 @@ GL_LoadShaderModule(GLenum Type, char *Path)
             Module = 0;
         }
 
-        OS_FreeFileMemory(&FileData);
+        Platform.FreeFileMemory(&FileData);
     }
 
     return Module;
@@ -137,7 +137,7 @@ GL_UploadMeshAsset(mesh_asset *Asset)
     mesh Mesh = { };
 
     Mesh.SubmeshCount = Asset->SubmeshCount;
-    Mesh.Submeshes = (submesh *)OS_AllocateMemory(Mesh.SubmeshCount * sizeof(submesh));
+    Mesh.Submeshes = (submesh *)Platform.AllocateMemory(Mesh.SubmeshCount * sizeof(submesh));
 
     // TODO(philip): Replace with my own function.
     memcpy(Mesh.Submeshes, Asset->Submeshes, Mesh.SubmeshCount * sizeof(submesh));
@@ -176,7 +176,7 @@ GL_FreeMesh(mesh *Mesh)
 {
     Assert(Mesh);
 
-    OS_FreeMemory(Mesh->Submeshes);
+    Platform.FreeMemory(Mesh->Submeshes);
 
     glDeleteVertexArrays(1, &Mesh->VertexArray);
     glDeleteVertexArrays(1, &Mesh->VertexBuffer);

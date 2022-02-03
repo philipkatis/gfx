@@ -8,7 +8,7 @@
 #include "gfx_base.h"
 #include "gfx_math.h"
 #include "gfx_asset.h"
-#include "gfx_os.h"
+#include "gfx_platform.h"
 #include "gfx_win32.h"
 #include "gfx_gl.h"
 
@@ -22,7 +22,7 @@
 //
 
 function void *
-OS_AllocateMemory(u64 Size)
+Win32AllocateMemory(u64 Size)
 {
     // TODO(philip): Change to using the Win32 API.
     void *Memory = calloc(1, Size);
@@ -30,7 +30,7 @@ OS_AllocateMemory(u64 Size)
 }
 
 function void
-OS_FreeMemory(void *Memory)
+Win32FreeMemory(void *Memory)
 {
     if (Memory)
     {
@@ -44,7 +44,7 @@ OS_FreeMemory(void *Memory)
 //
 
 function b32
-OS_ReadEntireFile(char *Path, buffer *Buffer)
+Win32ReadEntireFile(char *Path, buffer *Buffer)
 {
     Assert(Buffer);
 
@@ -55,7 +55,7 @@ OS_ReadEntireFile(char *Path, buffer *Buffer)
     {
         if (GetFileSizeEx(File, (LARGE_INTEGER *)&Buffer->Size))
         {
-            Buffer->Data = OS_AllocateMemory(Buffer->Size);
+            Buffer->Data = Platform.AllocateMemory(Buffer->Size);
 
             DWORD BytesRead;
             if (ReadFile(File, Buffer->Data, Buffer->Size, &BytesRead, 0) && (BytesRead == Buffer->Size))
@@ -64,7 +64,7 @@ OS_ReadEntireFile(char *Path, buffer *Buffer)
             }
             else
             {
-                OS_FreeFileMemory(Buffer);
+                Platform.FreeFileMemory(Buffer);
             }
         }
 
@@ -75,14 +75,30 @@ OS_ReadEntireFile(char *Path, buffer *Buffer)
 }
 
 function void
-OS_FreeFileMemory(buffer *Buffer)
+Win32FreeFileMemory(buffer *Buffer)
 {
     Assert(Buffer);
 
-    OS_FreeMemory(Buffer->Data);
+    Platform.FreeMemory(Buffer->Data);
 
     Buffer->Data = 0;
     Buffer->Size = 0;
+}
+
+//
+// NOTE(philip): Platform API
+//
+
+function void
+Win32InitializePlatformAPI(void)
+{
+    // NOTE(philip): Memory
+    Platform.AllocateMemory = Win32AllocateMemory;
+    Platform.FreeMemory = Win32FreeMemory;
+
+    // NOTE(philip): File IO
+    Platform.ReadEntireFile = Win32ReadEntireFile;
+    Platform.FreeFileMemory = Win32FreeFileMemory;
 }
 
 function void
@@ -254,7 +270,7 @@ Win32_WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
             Assert(GetRawInputData(InputHandle, RID_INPUT, 0, &InputDataSize, sizeof(RAWINPUTHEADER)) == 0);
 
             // TODO(philip): Switch to a memory arena.
-            void *InputData = OS_AllocateMemory(InputDataSize);
+            void *InputData = Platform.AllocateMemory(InputDataSize);
             Assert(GetRawInputData(InputHandle, RID_INPUT, InputData, &InputDataSize, sizeof(RAWINPUTHEADER)) ==
                    InputDataSize);
 
@@ -266,7 +282,7 @@ Win32_WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
 
             Win32State.RawCursorPosition += IV2(Mouse->lLastX, Mouse->lLastY);
 
-            OS_FreeMemory(InputData);
+            Platform.FreeMemory(InputData);
         } break;
 
         case WM_CLOSE:
@@ -421,6 +437,7 @@ s32
 WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 ShowCMD)
 {
     // NOTE(philip): DO NOT MOVE THIS.
+    Win32InitializePlatformAPI();
     Win32_InitializeState();
 
     LARGE_INTEGER PerformanceCounterFrequency;

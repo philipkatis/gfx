@@ -70,7 +70,7 @@ GetIndexSetID(index_set_table *Table, u64 Position, u64 TextureCoordinate, u64 N
     if (!Found)
     {
         // TODO(philip): Change to using a memory arena.
-        index_set *Set = (index_set *)OS_AllocateMemory(sizeof(index_set));
+        index_set *Set = (index_set *)Platform.AllocateMemory(sizeof(index_set));
 
         Set->ID = Table->Count++;
         Set->Position = Position;
@@ -97,7 +97,7 @@ LoadOBJ(char *Path, mesh_asset *Asset)
     *Asset = { };
 
     buffer FileData;
-    if (OS_ReadEntireFile(Path, &FileData))
+    if (Platform.ReadEntireFile(Path, &FileData))
     {
         u64 PositionCount = 0;
         u64 TextureCoordinateCount = 0;
@@ -149,20 +149,20 @@ LoadOBJ(char *Path, mesh_asset *Asset)
             }
         }
 
-        v3 *Positions = (v3 *)OS_AllocateMemory(PositionCount * sizeof(v3));
+        v3 *Positions = (v3 *)Platform.AllocateMemory(PositionCount * sizeof(v3));
         u64 PositionIndex = 0;
 
-        v2 *TextureCoordinates = (v2 *)OS_AllocateMemory(TextureCoordinateCount * sizeof(v2));
+        v2 *TextureCoordinates = (v2 *)Platform.AllocateMemory(TextureCoordinateCount * sizeof(v2));
         u64 TextureCoordinateIndex = 0;
 
-        v3 *Normals = (v3 *)OS_AllocateMemory(NormalCount * sizeof(v3));
+        v3 *Normals = (v3 *)Platform.AllocateMemory(NormalCount * sizeof(v3));
         u64 NormalIndex = 0;
 
         index_set_table IndexSetTable = { };
 
-        Asset->Indices = (u32 *)OS_AllocateMemory(TriangleCount * 3 * sizeof(u32));
+        Asset->Indices = (u32 *)Platform.AllocateMemory(TriangleCount * 3 * sizeof(u32));
 
-        Asset->Submeshes = (submesh *)OS_AllocateMemory(Asset->SubmeshCount * sizeof(submesh));
+        Asset->Submeshes = (submesh *)Platform.AllocateMemory(Asset->SubmeshCount * sizeof(submesh));
         s64 SubmeshIndex = -1;
 
         char *Pointer = (char *)FileData.Data;
@@ -250,7 +250,7 @@ LoadOBJ(char *Path, mesh_asset *Asset)
         }
 
         Asset->VertexCount = IndexSetTable.Count;
-        Asset->Vertices = (vertex *)OS_AllocateMemory(Asset->VertexCount * sizeof(vertex));
+        Asset->Vertices = (vertex *)Platform.AllocateMemory(Asset->VertexCount * sizeof(vertex));
 
         for (u64 Slot = 0;
              Slot < INDEX_SET_TABLE_SLOT_COUNT;
@@ -267,17 +267,17 @@ LoadOBJ(char *Path, mesh_asset *Asset)
                 Vertex->Normal = Normals[Set->Normal];
 
                 // TODO(philip): Change to using a memory arena.
-                OS_FreeMemory(Set);
+                Platform.FreeMemory(Set);
 
                 Set = Next;
             }
         }
 
-        OS_FreeMemory(Normals);
-        OS_FreeMemory(TextureCoordinates);
-        OS_FreeMemory(Positions);
+        Platform.FreeMemory(Normals);
+        Platform.FreeMemory(TextureCoordinates);
+        Platform.FreeMemory(Positions);
 
-        OS_FreeFileMemory(&FileData);
+        Platform.FreeFileMemory(&FileData);
     }
 }
 
@@ -286,9 +286,9 @@ FreeMeshAsset(mesh_asset *Asset)
 {
     Assert(Asset);
 
-    OS_FreeMemory(Asset->Vertices);
-    OS_FreeMemory(Asset->Indices);
-    OS_FreeMemory(Asset->Submeshes);
+    Platform.FreeMemory(Asset->Vertices);
+    Platform.FreeMemory(Asset->Indices);
+    Platform.FreeMemory(Asset->Submeshes);
 
     Asset->VertexCount = 0;
     Asset->Vertices = 0;
@@ -313,7 +313,7 @@ LoadTGA(char *Path, texture_asset *Asset)
     *Asset = { };
 
     buffer FileData;
-    if (OS_ReadEntireFile(Path, &FileData))
+    if (Platform.ReadEntireFile(Path, &FileData))
     {
         u8 *Pointer = (u8 *)FileData.Data;
 
@@ -353,7 +353,7 @@ LoadTGA(char *Path, texture_asset *Asset)
         u64 PixelCount = (Asset->Width * Asset->Height);
         u64 Size = (PixelCount * BytesPerPixel);
 
-        Asset->Data = (u8 *)OS_AllocateMemory(Size);
+        Asset->Data = (u8 *)Platform.AllocateMemory(Size);
 
         switch (Header->ImageType)
         {
@@ -423,7 +423,7 @@ LoadTGA(char *Path, texture_asset *Asset)
             } break;
         }
 
-        OS_FreeFileMemory(&FileData);
+        Platform.FreeFileMemory(&FileData);
     }
 }
 
@@ -432,7 +432,7 @@ FreeTextureAsset(texture_asset *Asset)
 {
     Assert(Asset);
 
-    OS_FreeMemory(Asset->Data);
+    Platform.FreeMemory(Asset->Data);
 
     Asset->Data = 0;
     Asset->Width = 0;
