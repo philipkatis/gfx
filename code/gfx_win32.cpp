@@ -184,6 +184,7 @@ Win32_DisableCursor(HWND Window)
 }
 
 global b32 IsControllingCamera = false;
+global f32 CameraMovementSpeed = 9.0f;
 
 // TODO(philip): Pressing ALT seems to reset the cursor?
 
@@ -214,6 +215,17 @@ Win32_WindowProcedure(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam)
                 }
 
                 // TODO(philip): Close the application when we press escape.
+            }
+        } break;
+
+        case WM_MOUSEWHEEL:
+        {
+            if (IsControllingCamera)
+            {
+                s32 Delta = GET_WHEEL_DELTA_WPARAM(WParam);
+
+                CameraMovementSpeed += ((f32)Delta / 240.0f);
+                CameraMovementSpeed = Clamp(CameraMovementSpeed, 0.1f, 25.0f);
             }
         } break;
 
@@ -526,10 +538,10 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         m4 Projection = Perspective(AspectRatio, ToRadians(45.0f), 0.01f, 10000.0f);
 
                         m4 Transform = Translate(V3(0.0f, 0.0f, 0.0f)) *
-                            ToM4(AxisAngleRotation(V3(0.0f, 1.0f, 0.0f), ToRadians(-90.0f))) *
+                            ToM4(Rotate(V3(0.0f, 1.0f, 0.0f), ToRadians(-90.0f))) *
                             Scale(V3(0.05f, 0.05f, 0.05f));
 
-                        f32 CameraMovementSpeed = 9.0f;
+
                         f32 CameraVerticalSensitivity = 0.05f;
                         f32 CameraHorizontalSensitivity = 0.07f;
 
@@ -537,7 +549,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                         v3 CameraPosition = V3(-20.0f, 0.0f, 20.0f);
                         f32 CameraPitch = 0.0f;
-                        f32 CameraYaw = -45.0f;
+                        f32 CameraYaw = 45.0f;
 
                         glEnable(GL_DEPTH_TEST);
 
@@ -581,14 +593,14 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 iv2 CursorPositionDelta = CursorPosition - LastCursorPosition;
                                 LastCursorPosition = CursorPosition;
 
-                                CameraYaw += -CursorPositionDelta.X * CameraHorizontalSensitivity;
+                                CameraYaw += CursorPositionDelta.X * CameraHorizontalSensitivity;
 
-                                CameraPitch += -CursorPositionDelta.Y * CameraVerticalSensitivity;
+                                CameraPitch += CursorPositionDelta.Y * CameraVerticalSensitivity;
                                 CameraPitch = Clamp(CameraPitch, -89.9f, 89.9f);
                             }
 
-                            quat CameraOrientation = AxisAngleRotation(V3(0.0f, 1.0f, 0.0f), ToRadians(CameraYaw)) *
-                                AxisAngleRotation(V3(1.0f, 0.0f, 0.0f), ToRadians(CameraPitch));
+                            quat CameraOrientation = Rotate(V3(0.0f, 1.0f, 0.0f), ToRadians(-CameraYaw)) *
+                                Rotate(V3(1.0f, 0.0f, 0.0f), ToRadians(-CameraPitch));
 
                             v3 CameraForward = RotateV3(V3(0.0f, 0.0f, -1.0f), CameraOrientation);
                             v3 CameraRight = RotateV3(V3(1.0f, 0.0f, 0.0f), CameraOrientation);
@@ -617,6 +629,16 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 {
                                     // NOTE(philip): D key is pressed.
                                     CameraPosition += CameraRight * CameraMovementSpeed * DeltaTime;
+                                }
+
+                                if (GetKeyState(VK_LSHIFT) & 0x8000)
+                                {
+                                    CameraPosition += V3(0.0f, 1.0f, 0.0f) * CameraMovementSpeed * DeltaTime;
+                                }
+
+                                if (GetKeyState(VK_LCONTROL) & 0x8000)
+                                {
+                                    CameraPosition -= V3(0.0f, 1.0f, 0.0f) * CameraMovementSpeed * DeltaTime;
                                 }
                             }
 

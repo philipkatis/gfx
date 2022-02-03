@@ -199,21 +199,21 @@ Conjugate(quat Quaternion)
 }
 
 function quat
-AxisAngleRotation(v3 Axis, f32 Angle)
+Rotate(v3 Axis, f32 Angle)
 {
-    quat Result = { };
-
     Axis = Normalize(Axis);
+
     f32 HalfAngle = (Angle / 2.0f);
     f32 HalfAngleSin = Sin(HalfAngle);
     f32 HalfAngleCos = Cos(HalfAngle);
 
-    Result.X = Axis.X * HalfAngleSin;
-    Result.Y = Axis.Y * HalfAngleSin;
-    Result.Z = Axis.Z * HalfAngleSin;
-    Result.W = HalfAngleCos;
+    quat Rotation;
+    Rotation.X = Axis.X * HalfAngleSin;
+    Rotation.Y = Axis.Y * HalfAngleSin;
+    Rotation.Z = Axis.Z * HalfAngleSin;
+    Rotation.W = HalfAngleCos;
 
-    return Result;
+    return Rotation;
 }
 
 function quat
