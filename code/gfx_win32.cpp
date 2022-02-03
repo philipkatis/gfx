@@ -584,17 +584,14 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 CameraYaw += -CursorPositionDelta.X * CameraHorizontalSensitivity;
 
                                 CameraPitch += -CursorPositionDelta.Y * CameraVerticalSensitivity;
-
-                                // TODO(philip): Why?
-                                CameraPitch = Clamp(CameraPitch, -55.0f, 55.0f);
+                                CameraPitch = Clamp(CameraPitch, -89.9f, 89.9f);
                             }
 
-                            v3 CameraRight = Normalize(Cross(CameraForward, V3(0.0f, 1.0f, 0.0f)));
+                            quat CameraOrientation = AxisAngleRotation(V3(0.0f, 1.0f, 0.0f), ToRadians(CameraYaw)) *
+                                AxisAngleRotation(V3(1.0f, 0.0f, 0.0f), ToRadians(CameraPitch));
 
-                            quat CameraRotation = AxisAngleRotation(CameraRight, ToRadians(CameraPitch)) *
-                                AxisAngleRotation(V3(0.0f, 1.0f, 0.0f), ToRadians(CameraYaw));
-
-                            CameraForward = Normalize(RotateV3(V3(0.0f, 0.0f, -1.0f), CameraRotation));
+                            v3 CameraForward = RotateV3(V3(0.0f, 0.0f, -1.0f), CameraOrientation);
+                            v3 CameraRight = RotateV3(V3(1.0f, 0.0f, 0.0f), CameraOrientation);
 
                             if (IsControllingCamera)
                             {
@@ -623,7 +620,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 }
                             }
 
-                            m4 View = ToM4(Conjugate(CameraRotation)) * Translate(-CameraPosition);
+                            m4 View = ToM4(Conjugate(CameraOrientation)) * Translate(-CameraPosition);
                             m4 ViewProjection = Projection * View;
 
                             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
