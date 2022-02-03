@@ -254,7 +254,7 @@ RotateV3(v3 Vector, quat Rotation)
 //
 
 function m4
-IdentityM4(void)
+Identity(void)
 {
     m4 Result = { };
 
@@ -272,14 +272,13 @@ Perspective(f32 AspectRatio, f32 VerticalFOV, f32 NearPlane, f32 FarPlane)
     m4 Result = { };
 
     f32 TanHalfVerticalFOV = Tan(VerticalFOV / 2.0f);
-    f32 FrustumLength = (FarPlane - NearPlane);
 
     Result.Data[0 + 0 * 4] = (1.0f / (AspectRatio * TanHalfVerticalFOV));
     Result.Data[1 + 1 * 4] = (1.0f / TanHalfVerticalFOV);
 
-    Result.Data[2 + 2 * 4] = -((NearPlane + FarPlane) / FrustumLength);
-    Result.Data[3 + 2 * 4] = -1.0f;
-    Result.Data[2 + 3 * 4] = -((2.0f * NearPlane * FarPlane) / FrustumLength);
+    Result.Data[2 + 2 * 4] = ((NearPlane + FarPlane) / (NearPlane - FarPlane));
+    Result.Data[2 + 3 * 4] = -1.0f;
+    Result.Data[3 + 2 * 4] = ((2.0f * NearPlane * FarPlane) / (NearPlane - FarPlane));
 
     return Result;
 }
@@ -287,11 +286,11 @@ Perspective(f32 AspectRatio, f32 VerticalFOV, f32 NearPlane, f32 FarPlane)
 function m4
 Translate(v3 Translation)
 {
-    m4 Result = IdentityM4();
+    m4 Result = Identity();
 
-    Result.Data[0 + 3 * 4] = Translation.X;
-    Result.Data[1 + 3 * 4] = Translation.Y;
-    Result.Data[2 + 3 * 4] = Translation.Z;
+    Result.Data[3 + 0 * 4] = Translation.X;
+    Result.Data[3 + 1 * 4] = Translation.Y;
+    Result.Data[3 + 2 * 4] = Translation.Z;
 
     return Result;
 }
@@ -299,7 +298,7 @@ Translate(v3 Translation)
 function m4
 Scale(v3 Scale)
 {
-    m4 Result = IdentityM4();
+    m4 Result = Identity();
 
     Result.Data[0 + 0 * 4] = Scale.X;
     Result.Data[1 + 1 * 4] = Scale.Y;
@@ -344,15 +343,15 @@ ToM4(quat Quaternion)
     f32 ZSquared = (Quaternion.Z * Quaternion.Z);
 
     Result.Data[0 + 0 * 4] = (1.0f - (2.0f * YSquared) - (2.0f * ZSquared));
-    Result.Data[1 + 0 * 4] = ((2.0f * Quaternion.X * Quaternion.Y) + (2.0f * Quaternion.W * Quaternion.Z));
-    Result.Data[2 + 0 * 4] = ((2.0f * Quaternion.X * Quaternion.Z) - (2.0f * Quaternion.W * Quaternion.Y));
+    Result.Data[0 + 1 * 4] = ((2.0f * Quaternion.X * Quaternion.Y) + (2.0f * Quaternion.W * Quaternion.Z));
+    Result.Data[0 + 2 * 4] = ((2.0f * Quaternion.X * Quaternion.Z) - (2.0f * Quaternion.W * Quaternion.Y));
 
-    Result.Data[0 + 1 * 4] = ((2.0f * Quaternion.X * Quaternion.Y) - (2.0f * Quaternion.W * Quaternion.Z));
+    Result.Data[1 + 0 * 4] = ((2.0f * Quaternion.X * Quaternion.Y) - (2.0f * Quaternion.W * Quaternion.Z));
     Result.Data[1 + 1 * 4] = (1.0f - (2.0f * XSquared) - (2.0f * ZSquared));
-    Result.Data[2 + 1 * 4] = ((2.0f * Quaternion.Y * Quaternion.Z) + (2.0f * Quaternion.W * Quaternion.X));
+    Result.Data[1 + 2 * 4] = ((2.0f * Quaternion.Y * Quaternion.Z) + (2.0f * Quaternion.W * Quaternion.X));
 
-    Result.Data[0 + 2 * 4] = ((2.0f * Quaternion.X * Quaternion.Z) + (2.0f * Quaternion.W * Quaternion.Y));
-    Result.Data[1 + 2 * 4] = ((2.0f * Quaternion.Y * Quaternion.Z) - (2.0f * Quaternion.W * Quaternion.X));
+    Result.Data[2 + 0 * 4] = ((2.0f * Quaternion.X * Quaternion.Z) + (2.0f * Quaternion.W * Quaternion.Y));
+    Result.Data[2 + 1 * 4] = ((2.0f * Quaternion.Y * Quaternion.Z) - (2.0f * Quaternion.W * Quaternion.X));
     Result.Data[2 + 2 * 4] = (1.0f - (2.0f * YSquared) - (2.0f * XSquared));
 
     Result.Data[3 + 3 * 4] = 1.0f;

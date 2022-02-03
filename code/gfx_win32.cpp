@@ -525,9 +525,9 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                         m4 Projection = Perspective(AspectRatio, ToRadians(45.0f), 0.01f, 10000.0f);
 
-                        m4 Transform = Scale(V3(0.05f, 0.05f, 0.05f)) *
+                        m4 Transform = Translate(V3(0.0f, 0.0f, 0.0f)) *
                             ToM4(AxisAngleRotation(V3(0.0f, 1.0f, 0.0f), ToRadians(-90.0f))) *
-                            Translate(V3(0.0f, 0.0f, 0.0f));
+                            Scale(V3(0.05f, 0.05f, 0.05f));
 
                         f32 CameraMovementSpeed = 9.0f;
                         f32 CameraVerticalSensitivity = 0.05f;
@@ -542,7 +542,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         glEnable(GL_DEPTH_TEST);
 
                         glUseProgram(Shader.Program);
-                        glUniformMatrix4fv(TransformUniformLocation, 1, GL_FALSE, (GLfloat *)&Transform);
+                        glUniformMatrix4fv(TransformUniformLocation, 1, GL_TRUE, (GLfloat *)&Transform);
 
                         wglSwapIntervalEXT(1);
                         ShowWindow(Window, SW_SHOW);
@@ -623,12 +623,12 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 }
                             }
 
-                            m4 View = Translate(-CameraPosition) * ToM4(Conjugate(CameraRotation));
-                            m4 ViewProjection = View * Projection;
+                            m4 View = ToM4(Conjugate(CameraRotation)) * Translate(-CameraPosition);
+                            m4 ViewProjection = Projection * View;
 
                             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-                            glUniformMatrix4fv(ViewProjectionUniformLocation, 1, GL_FALSE,
+                            glUniformMatrix4fv(ViewProjectionUniformLocation, 1, GL_TRUE,
                                                (GLfloat *)&ViewProjection);
                             glUniform3fv(CameraDirectionUniformLocation, 1, (GLfloat *)&CameraForward);
 
