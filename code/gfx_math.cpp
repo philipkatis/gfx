@@ -70,7 +70,7 @@ IV2(s32 X, s32 Y)
 }
 
 function iv2
-operator-(iv2& Left, iv2& Right)
+operator-(iv2 Left, iv2 Right)
 {
     iv2 Result = { };
 
@@ -80,8 +80,8 @@ operator-(iv2& Left, iv2& Right)
     return Result;
 }
 
-function iv2&
-operator+=(iv2& Left, iv2& Right)
+function iv2 &
+operator+=(iv2 &Left, iv2 Right)
 {
     Left.X += Right.X;
     Left.Y += Right.Y;
@@ -138,7 +138,7 @@ Cross(v3 Left, v3 Right)
 }
 
 function v3
-operator-(v3& Vector)
+operator-(v3 Vector)
 {
     v3 Result = { };
 
@@ -150,7 +150,7 @@ operator-(v3& Vector)
 }
 
 function v3
-operator*(v3& Vector, f32 Scalar)
+operator*(v3 Vector, f32 Scalar)
 {
     v3 Result = { };
 
@@ -161,8 +161,8 @@ operator*(v3& Vector, f32 Scalar)
     return Result;
 }
 
-function v3&
-operator+=(v3& Left, v3& Right)
+function v3 &
+operator+=(v3 &Left, v3 Right)
 {
     Left.X += Right.X;
     Left.Y += Right.Y;
@@ -171,8 +171,8 @@ operator+=(v3& Left, v3& Right)
     return Left;
 }
 
-function v3&
-operator-=(v3& Left, v3& Right)
+function v3 &
+operator-=(v3 &Left, v3 Right)
 {
     Left.X -= Right.X;
     Left.Y -= Right.Y;
@@ -217,7 +217,7 @@ AxisAngleRotation(v3 Axis, f32 Angle)
 }
 
 function quat
-operator*(quat& Left, quat& Right)
+operator*(quat Left, quat Right)
 {
     quat Result = { };
 
@@ -258,10 +258,10 @@ IdentityM4(void)
 {
     m4 Result = { };
 
-    Result.Elements[0 + 0 * 4] = 1.0f;
-    Result.Elements[1 + 1 * 4] = 1.0f;
-    Result.Elements[2 + 2 * 4] = 1.0f;
-    Result.Elements[3 + 3 * 4] = 1.0f;
+    Result.Data[0 + 0 * 4] = 1.0f;
+    Result.Data[1 + 1 * 4] = 1.0f;
+    Result.Data[2 + 2 * 4] = 1.0f;
+    Result.Data[3 + 3 * 4] = 1.0f;
 
     return Result;
 }
@@ -274,12 +274,12 @@ Perspective(f32 AspectRatio, f32 VerticalFOV, f32 NearPlane, f32 FarPlane)
     f32 TanHalfVerticalFOV = Tan(VerticalFOV / 2.0f);
     f32 FrustumLength = (FarPlane - NearPlane);
 
-    Result.Elements[0 + 0 * 4] = (1.0f / (AspectRatio * TanHalfVerticalFOV));
-    Result.Elements[1 + 1 * 4] = (1.0f / TanHalfVerticalFOV);
+    Result.Data[0 + 0 * 4] = (1.0f / (AspectRatio * TanHalfVerticalFOV));
+    Result.Data[1 + 1 * 4] = (1.0f / TanHalfVerticalFOV);
 
-    Result.Elements[2 + 2 * 4] = -((NearPlane + FarPlane) / FrustumLength);
-    Result.Elements[3 + 2 * 4] = -1.0f;
-    Result.Elements[2 + 3 * 4] = -((2.0f * NearPlane * FarPlane) / FrustumLength);
+    Result.Data[2 + 2 * 4] = -((NearPlane + FarPlane) / FrustumLength);
+    Result.Data[3 + 2 * 4] = -1.0f;
+    Result.Data[2 + 3 * 4] = -((2.0f * NearPlane * FarPlane) / FrustumLength);
 
     return Result;
 }
@@ -289,9 +289,9 @@ Translate(v3 Translation)
 {
     m4 Result = IdentityM4();
 
-    Result.Elements[0 + 3 * 4] = Translation.X;
-    Result.Elements[1 + 3 * 4] = Translation.Y;
-    Result.Elements[2 + 3 * 4] = Translation.Z;
+    Result.Data[0 + 3 * 4] = Translation.X;
+    Result.Data[1 + 3 * 4] = Translation.Y;
+    Result.Data[2 + 3 * 4] = Translation.Z;
 
     return Result;
 }
@@ -301,15 +301,15 @@ Scale(v3 Scale)
 {
     m4 Result = IdentityM4();
 
-    Result.Elements[0 + 0 * 4] = Scale.X;
-    Result.Elements[1 + 1 * 4] = Scale.Y;
-    Result.Elements[2 + 2 * 4] = Scale.Z;
+    Result.Data[0 + 0 * 4] = Scale.X;
+    Result.Data[1 + 1 * 4] = Scale.Y;
+    Result.Data[2 + 2 * 4] = Scale.Z;
 
     return Result;
 }
 
 function m4
-operator*(m4& Left, m4& Right)
+operator*(m4 Left, m4 Right)
 {
     m4 Result = { };
 
@@ -325,8 +325,8 @@ operator*(m4& Left, m4& Right)
                  Index < 4;
                  ++Index)
             {
-                Result.Elements[Column + Row * 4] += Left.Elements[Index + Row * 4] *
-                    Right.Elements[Column + Index * 4];
+                Result.Data[Column + Row * 4] += Left.Data[Index + Row * 4] *
+                    Right.Data[Column + Index * 4];
             }
         }
     }
@@ -343,19 +343,19 @@ ToM4(quat Quaternion)
     f32 YSquared = (Quaternion.Y * Quaternion.Y);
     f32 ZSquared = (Quaternion.Z * Quaternion.Z);
 
-    Result.Elements[0 + 0 * 4] = (1.0f - (2.0f * YSquared) - (2.0f * ZSquared));
-    Result.Elements[1 + 0 * 4] = ((2.0f * Quaternion.X * Quaternion.Y) + (2.0f * Quaternion.W * Quaternion.Z));
-    Result.Elements[2 + 0 * 4] = ((2.0f * Quaternion.X * Quaternion.Z) - (2.0f * Quaternion.W * Quaternion.Y));
+    Result.Data[0 + 0 * 4] = (1.0f - (2.0f * YSquared) - (2.0f * ZSquared));
+    Result.Data[1 + 0 * 4] = ((2.0f * Quaternion.X * Quaternion.Y) + (2.0f * Quaternion.W * Quaternion.Z));
+    Result.Data[2 + 0 * 4] = ((2.0f * Quaternion.X * Quaternion.Z) - (2.0f * Quaternion.W * Quaternion.Y));
 
-    Result.Elements[0 + 1 * 4] = ((2.0f * Quaternion.X * Quaternion.Y) - (2.0f * Quaternion.W * Quaternion.Z));
-    Result.Elements[1 + 1 * 4] = (1.0f - (2.0f * XSquared) - (2.0f * ZSquared));
-    Result.Elements[2 + 1 * 4] = ((2.0f * Quaternion.Y * Quaternion.Z) + (2.0f * Quaternion.W * Quaternion.X));
+    Result.Data[0 + 1 * 4] = ((2.0f * Quaternion.X * Quaternion.Y) - (2.0f * Quaternion.W * Quaternion.Z));
+    Result.Data[1 + 1 * 4] = (1.0f - (2.0f * XSquared) - (2.0f * ZSquared));
+    Result.Data[2 + 1 * 4] = ((2.0f * Quaternion.Y * Quaternion.Z) + (2.0f * Quaternion.W * Quaternion.X));
 
-    Result.Elements[0 + 2 * 4] = ((2.0f * Quaternion.X * Quaternion.Z) + (2.0f * Quaternion.W * Quaternion.Y));
-    Result.Elements[1 + 2 * 4] = ((2.0f * Quaternion.Y * Quaternion.Z) - (2.0f * Quaternion.W * Quaternion.X));
-    Result.Elements[2 + 2 * 4] = (1.0f - (2.0f * YSquared) - (2.0f * XSquared));
+    Result.Data[0 + 2 * 4] = ((2.0f * Quaternion.X * Quaternion.Z) + (2.0f * Quaternion.W * Quaternion.Y));
+    Result.Data[1 + 2 * 4] = ((2.0f * Quaternion.Y * Quaternion.Z) - (2.0f * Quaternion.W * Quaternion.X));
+    Result.Data[2 + 2 * 4] = (1.0f - (2.0f * YSquared) - (2.0f * XSquared));
 
-    Result.Elements[3 + 3 * 4] = 1.0f;
+    Result.Data[3 + 3 * 4] = 1.0f;
 
     return Result;
 }
