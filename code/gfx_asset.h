@@ -32,10 +32,16 @@ struct vertex
     v3 Normal;
 };
 
+struct material
+{
+
+};
+
 struct submesh
 {
     u64 IndexOffset;
     u64 IndexCount;
+    s64 MaterialIndex;
 };
 
 struct mesh_asset
@@ -52,6 +58,9 @@ struct mesh_asset
 
     u64 SubmeshCount;
     submesh *Submeshes;
+
+    u64 MaterialCount;
+    material *Materials;
 };
 
 //

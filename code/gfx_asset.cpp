@@ -3,7 +3,7 @@
 //
 
 function char *
-OBJ_ParseV2(char *Pointer, v2 *Vector)
+OBJParseV2(char *Pointer, v2 *Vector)
 {
     for (u32 ComponentIndex = 0;
          ComponentIndex < 2;
@@ -23,7 +23,7 @@ OBJ_ParseV2(char *Pointer, v2 *Vector)
 }
 
 function char *
-OBJ_ParseV3(char *Pointer, v3 *Vector)
+OBJParseV3(char *Pointer, v3 *Vector)
 {
     for (u32 ComponentIndex = 0;
          ComponentIndex < 3;
@@ -44,7 +44,7 @@ OBJ_ParseV3(char *Pointer, v3 *Vector)
 
 // TODO(philip): Documentation.
 function u32
-GetIndexSetID(index_set_table *Table, u64 Position, u64 TextureCoordinate, u64 Normal)
+OBJGetIndexSetID(index_set_table *Table, u64 Position, u64 TextureCoordinate, u64 Normal)
 {
     u32 ID = 0;
     b32 Found = false;
@@ -92,8 +92,6 @@ function void
 LoadOBJ(char *Path, mesh_asset *Asset)
 {
     Assert(Asset);
-
-    // TODO(philip): Redundant?
     *Asset = { };
 
     buffer FileData;
@@ -103,6 +101,7 @@ LoadOBJ(char *Path, mesh_asset *Asset)
         u64 TextureCoordinateCount = 0;
         u64 NormalCount = 0;
         u64 TriangleCount = 0;
+        u64 MaterialInstanceCount = 0;
 
         {
             char *Pointer = (char *)FileData.Data;
@@ -138,6 +137,15 @@ LoadOBJ(char *Path, mesh_asset *Asset)
                         ++Asset->SubmeshCount;
                     } break;
 
+                    case 'u':
+                    {
+                        // TODO(philip): Replace memcmp.
+                        if (memcmp(Pointer, "usemtl", 6 * sizeof(char)) == 0)
+                        {
+                            ++MaterialInstanceCount;
+                        }
+                    } break;
+
                     case 'f':
                     {
                         ++TriangleCount;
@@ -165,6 +173,9 @@ LoadOBJ(char *Path, mesh_asset *Asset)
         Asset->Submeshes = (submesh *)Platform.AllocateMemory(Asset->SubmeshCount * sizeof(submesh));
         s64 SubmeshIndex = -1;
 
+        char **MaterialNames = (char **)Platform.AllocateMemory(MaterialInstanceCount * sizeof(char *));
+        s64 CurrentMaterialIndex = -1;
+
         char *Pointer = (char *)FileData.Data;
         char *End = (char *)FileData.Data + FileData.Size;
 
@@ -179,19 +190,19 @@ LoadOBJ(char *Path, mesh_asset *Asset)
                         case 't':
                         {
                             v2 *TextureCoordinate = TextureCoordinates + TextureCoordinateIndex++;
-                            Pointer = OBJ_ParseV2(Pointer, TextureCoordinate);
+                            Pointer = OBJParseV2(Pointer, TextureCoordinate);
                         } break;
 
                         case 'n':
                         {
                             v3 *Normal = Normals + NormalIndex++;
-                            Pointer = OBJ_ParseV3(Pointer, Normal);
+                            Pointer = OBJParseV3(Pointer, Normal);
                         } break;
 
                         default:
                         {
                             v3 *Position = Positions + PositionIndex++;
-                            Pointer = OBJ_ParseV3(Pointer, Position);
+                            Pointer = OBJParseV3(Pointer, Position);
                         } break;
                     }
                 } break;
@@ -202,6 +213,60 @@ LoadOBJ(char *Path, mesh_asset *Asset)
 
                     submesh *Submesh = Asset->Submeshes + ++SubmeshIndex;
                     Submesh->IndexOffset = Asset->IndexCount;
+                    Submesh->MaterialIndex = CurrentMaterialIndex;
+                } break;
+
+                case 'u':
+                {
+                    char *PropertyName = Pointer;
+
+                    Pointer = SkipUntilWhitespace(++Pointer);
+                    *Pointer = 0;
+
+                    // TODO(philip): Replace strcmp.
+                    if (strcmp(PropertyName, "usemtl") == 0)
+                    {
+                        Pointer = SkipWhitespace(++Pointer);
+                        char *MaterialName = Pointer;
+
+                        Pointer = SkipUntilWhitespace(++Pointer);
+                        *Pointer = 0;
+
+                        for (u64 Index = 0;
+                             Index < MaterialInstanceCount;
+                             ++Index)
+                        {
+                            if (MaterialNames[Index])
+                            {
+                                if (strcmp(MaterialNames[Index], MaterialName) == 0)
+                                {
+                                    CurrentMaterialIndex = Index;
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                u64 MaterialNameLength = strlen(MaterialName);
+                                MaterialNames[Index] = (char *)Platform.AllocateMemory((MaterialNameLength + 1) * sizeof(char));
+                                strcpy(MaterialNames[Index], MaterialName);
+
+                                CurrentMaterialIndex = Index;
+                                ++Asset->MaterialCount;
+
+                                break;
+                            }
+                        }
+
+                        submesh *Submesh = Asset->Submeshes + SubmeshIndex;
+                        if (Submesh->MaterialIndex == -1)
+                        {
+                            Submesh->MaterialIndex = CurrentMaterialIndex;
+                        }
+                    }
+                    else
+                    {
+                        Pointer = SkipLine(Pointer);
+                    }
                 } break;
 
                 case 'f':
@@ -232,7 +297,7 @@ LoadOBJ(char *Path, mesh_asset *Asset)
                         u64 TextureCoordinate = atoi(TextureCoordinateString) - 1;
                         u64 Normal = atoi(NormalString) - 1;
 
-                        u64 ID = GetIndexSetID(&IndexSetTable, Position, TextureCoordinate, Normal);
+                        u64 ID = OBJGetIndexSetID(&IndexSetTable, Position, TextureCoordinate, Normal);
                         Asset->Indices[Asset->IndexCount++] = ID;
                     }
 
@@ -273,6 +338,16 @@ LoadOBJ(char *Path, mesh_asset *Asset)
             }
         }
 
+        Asset->Materials = (material *)Platform.AllocateMemory(Asset->MaterialCount * sizeof(material));
+
+        for (u64 Index = 0;
+             Index < MaterialInstanceCount;
+             ++Index)
+        {
+            Platform.FreeMemory(MaterialNames[Index]);
+        }
+
+        Platform.FreeMemory(MaterialNames);
         Platform.FreeMemory(Normals);
         Platform.FreeMemory(TextureCoordinates);
         Platform.FreeMemory(Positions);
@@ -289,6 +364,7 @@ FreeMeshAsset(mesh_asset *Asset)
     Platform.FreeMemory(Asset->Vertices);
     Platform.FreeMemory(Asset->Indices);
     Platform.FreeMemory(Asset->Submeshes);
+    Platform.FreeMemory(Asset->Materials);
 
     Asset->VertexCount = 0;
     Asset->Vertices = 0;
@@ -296,6 +372,8 @@ FreeMeshAsset(mesh_asset *Asset)
     Asset->Indices = 0;
     Asset->SubmeshCount = 0;
     Asset->Submeshes = 0;
+    Asset->MaterialCount = 0;
+    Asset->Materials = 0;
 }
 
 //
