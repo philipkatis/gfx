@@ -175,8 +175,8 @@ GLFreeMesh(mesh *Mesh)
     Platform.FreeMemory(Mesh->Submeshes);
 
     glDeleteVertexArrays(1, &Mesh->VertexArray);
-    glDeleteVertexArrays(1, &Mesh->VertexBuffer);
-    glDeleteVertexArrays(1, &Mesh->IndexBuffer);
+    glDeleteBuffers(1, &Mesh->VertexBuffer);
+    glDeleteBuffers(1, &Mesh->IndexBuffer);
 
     *Mesh = { };
 }
