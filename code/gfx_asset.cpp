@@ -15,7 +15,6 @@ OBJParseV2(char *Pointer, v2 *Vector)
         Pointer = SkipUntilWhitespace(Pointer);
         *Pointer = 0;
 
-        // TODO(philip): Replace atof.
         Vector->Data[ComponentIndex] = atof(ComponentString);
     }
 
@@ -35,14 +34,12 @@ OBJParseV3(char *Pointer, v3 *Vector)
         Pointer = SkipUntilWhitespace(Pointer);
         *Pointer = 0;
 
-        // TODO(philip): Replace atof.
         Vector->Data[ComponentIndex] = atof(ComponentString);
     }
 
     return Pointer;
 }
 
-// TODO(philip): Documentation.
 function u32
 OBJGetIndexSetID(index_set_table *Table, u64 Position, u64 TextureCoordinate, u64 Normal)
 {
@@ -87,21 +84,21 @@ OBJGetIndexSetID(index_set_table *Table, u64 Position, u64 TextureCoordinate, u6
 }
 
 function u64
-GetVertexSize(vertex_flags Flags)
+GetVertexSize(vertex_attribute_flags Flags)
 {
     u64 Size = 0;
 
-    if (Flags & VertexFlags_HasPositions)
+    if (Flags & VertexAttributeFlags_Position)
     {
         Size += sizeof(v3);
     }
 
-    if (Flags & VertexFlags_HasTextureCoordiantes)
+    if (Flags & VertexAttributeFlags_TextureCoordiante)
     {
         Size += sizeof(v2);
     }
 
-    if (Flags & VertexFlags_HasNormals)
+    if (Flags & VertexAttributeFlags_Normal)
     {
         Size += sizeof(v3);
     }
@@ -189,19 +186,19 @@ LoadOBJ(char *FilePath, mesh_asset *Asset)
         if (PositionCount)
         {
             Positions = (v3 *)Platform.AllocateMemory(PositionCount * sizeof(v3));
-            Asset->VertexFlags |= VertexFlags_HasPositions;
+            Asset->VertexAttributeFlags |= VertexAttributeFlags_Position;
         }
 
         if (TextureCoordinateCount)
         {
             TextureCoordinates = (v2 *)Platform.AllocateMemory(TextureCoordinateCount * sizeof(v2));
-            Asset->VertexFlags |= VertexFlags_HasTextureCoordiantes;
+            Asset->VertexAttributeFlags |= VertexAttributeFlags_TextureCoordiante;
         }
 
         if (NormalCount)
         {
             Normals = (v3 *)Platform.AllocateMemory(NormalCount * sizeof(v3));
-            Asset->VertexFlags |= VertexFlags_HasNormals;
+            Asset->VertexAttributeFlags |= VertexAttributeFlags_Normal;
         }
 
         u64 PositionIndex = 0;
@@ -317,27 +314,54 @@ LoadOBJ(char *FilePath, mesh_asset *Asset)
                          SetIndex < 3;
                          ++SetIndex)
                     {
-                        // TODO(philip): Maybe turn this into a loop.
+                        char *PositionString = 0;
+                        char *TextureCoordinateString = 0;
+                        char *NormalString = 0;
 
                         Pointer = SkipWhitespace(++Pointer);
-                        char *PositionString = Pointer;
 
-                        Pointer = SkipUntil(Pointer, '/');
-                        *Pointer = 0;
+                        if (Asset->VertexAttributeFlags & VertexAttributeFlags_Position)
+                        {
+                            PositionString = Pointer;
+                        }
 
-                        char *TextureCoordinateString = ++Pointer;
+                        if (Asset->VertexAttributeFlags & VertexAttributeFlags_TextureCoordiante)
+                        {
+                            Pointer = SkipUntil(Pointer, '/');
+                            *Pointer = 0;
 
-                        Pointer = SkipUntil(Pointer, '/');
-                        *Pointer = 0;
+                            TextureCoordinateString = ++Pointer;
+                        }
 
-                        char *NormalString = ++Pointer;
+                        if (Asset->VertexAttributeFlags & VertexAttributeFlags_Normal)
+                        {
+                            Pointer = SkipUntil(Pointer, '/');
+                            *Pointer = 0;
+
+                            NormalString = ++Pointer;
+                        }
 
                         Pointer = SkipUntilWhitespace(Pointer);
                         *Pointer = 0;
 
-                        u64 Position = atoi(PositionString) - 1;
-                        u64 TextureCoordinate = atoi(TextureCoordinateString) - 1;
-                        u64 Normal = atoi(NormalString) - 1;
+                        u64 Position = 0;
+                        u64 TextureCoordinate = 0;
+                        u64 Normal = 0;
+
+                        if (Asset->VertexAttributeFlags & VertexAttributeFlags_Position)
+                        {
+                            Position = atoi(PositionString) - 1;
+                        }
+
+                        if (Asset->VertexAttributeFlags & VertexAttributeFlags_TextureCoordiante)
+                        {
+                            TextureCoordinate = atoi(TextureCoordinateString) - 1;
+                        }
+
+                        if (Asset->VertexAttributeFlags & VertexAttributeFlags_Normal)
+                        {
+                            Normal = atoi(NormalString) - 1;
+                        }
 
                         u64 ID = OBJGetIndexSetID(&IndexSetTable, Position, TextureCoordinate, Normal);
                         Asset->Indices[Asset->IndexCount++] = ID;
@@ -356,7 +380,7 @@ LoadOBJ(char *FilePath, mesh_asset *Asset)
             ++Pointer;
         }
 
-        u64 VertexSize = GetVertexSize(Asset->VertexFlags);
+        u64 VertexSize = GetVertexSize(Asset->VertexAttributeFlags);
         Asset->VertexData.Size = (IndexSetTable.Count * VertexSize);
         Asset->VertexData.Data = (u8 *)Platform.AllocateMemory(Asset->VertexData.Size);
 
@@ -367,31 +391,29 @@ LoadOBJ(char *FilePath, mesh_asset *Asset)
             index_set *Set = IndexSetTable.Slots[Slot];
             while (Set)
             {
-                index_set *Next = Set->Next;
-
                 u8 *Pointer = ((u8 *)Asset->VertexData.Data + (Set->ID * VertexSize));
 
-                if (Asset->VertexFlags & VertexFlags_HasPositions)
+                if (Asset->VertexAttributeFlags & VertexAttributeFlags_Position)
                 {
                     memcpy(Pointer, (Positions + Set->Position), sizeof(v3));
                     Pointer += sizeof(v3);
                 }
 
-                if (Asset->VertexFlags & VertexFlags_HasTextureCoordiantes)
+                if (Asset->VertexAttributeFlags & VertexAttributeFlags_TextureCoordiante)
                 {
                     memcpy(Pointer, (TextureCoordinates + Set->TextureCoordinate), sizeof(v2));
                     Pointer += sizeof(v2);
                 }
 
-                if (Asset->VertexFlags & VertexFlags_HasNormals)
+                if (Asset->VertexAttributeFlags & VertexAttributeFlags_Normal)
                 {
                     memcpy(Pointer, (Normals + Set->Normal), sizeof(v3));
                     Pointer += sizeof(v3);
                 }
 
                 // TODO(philip): Change to using a memory arena.
+                index_set *Next = Set->Next;
                 Platform.FreeMemory(Set);
-
                 Set = Next;
             }
         }

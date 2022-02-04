@@ -36,17 +36,17 @@ struct submesh
     s64 MaterialIndex;
 };
 
-typedef u32 vertex_flags;
+typedef u32 vertex_attribute_flags;
 enum
 {
-    VertexFlags_HasPositions             = 1,
-    VertexFlags_HasTextureCoordiantes    = 2,
-    VertexFlags_HasNormals               = 4
+    VertexAttributeFlags_Position             = 1,
+    VertexAttributeFlags_TextureCoordiante    = 2,
+    VertexAttributeFlags_Normal               = 4
 };
 
 struct mesh_asset
 {
-    vertex_flags VertexFlags;
+    vertex_attribute_flags VertexAttributeFlags;
     buffer VertexData;
 
     u64 IndexCount;

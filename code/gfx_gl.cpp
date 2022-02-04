@@ -146,11 +146,11 @@ GLUploadMesh(mesh_asset *Asset)
     glBindBuffer(GL_ARRAY_BUFFER, Mesh.VertexBuffer);
     glBufferData(GL_ARRAY_BUFFER, Asset->VertexData.Size, Asset->VertexData.Data, GL_STATIC_DRAW);
 
-    u64 VertexSize = GetVertexSize(Asset->VertexFlags);
+    u64 VertexSize = GetVertexSize(Asset->VertexAttributeFlags);
     u64 AttributeIndex = 0;
     u64 AttributeOffset = 0;
 
-    if (Asset->VertexFlags & VertexFlags_HasPositions)
+    if (Asset->VertexAttributeFlags & VertexAttributeFlags_Position)
     {
         glEnableVertexAttribArray(AttributeIndex);
         glVertexAttribPointer(AttributeIndex, 3, GL_FLOAT, GL_FALSE, VertexSize, (void *)AttributeOffset);
@@ -159,7 +159,7 @@ GLUploadMesh(mesh_asset *Asset)
         AttributeOffset += sizeof(v3);
     }
 
-    if (Asset->VertexFlags & VertexFlags_HasTextureCoordiantes)
+    if (Asset->VertexAttributeFlags & VertexAttributeFlags_TextureCoordiante)
     {
         glEnableVertexAttribArray(AttributeIndex);
         glVertexAttribPointer(AttributeIndex, 2, GL_FLOAT, GL_FALSE, VertexSize, (void *)AttributeOffset);
@@ -168,7 +168,7 @@ GLUploadMesh(mesh_asset *Asset)
         AttributeOffset += sizeof(v2);
     }
 
-    if (Asset->VertexFlags & VertexFlags_HasNormals)
+    if (Asset->VertexAttributeFlags & VertexAttributeFlags_Normal)
     {
         glEnableVertexAttribArray(AttributeIndex);
         glVertexAttribPointer(AttributeIndex, 3, GL_FLOAT, GL_FALSE, VertexSize, (void *)AttributeOffset);

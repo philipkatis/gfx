@@ -571,11 +571,8 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                             ToM4(Rotate(V3(0.0f, 1.0f, 0.0f), ToRadians(-90.0f))) *
                             Scale(V3(0.05f, 0.05f, 0.05f));
 
-
                         f32 CameraVerticalSensitivity = 0.05f;
                         f32 CameraHorizontalSensitivity = 0.07f;
-
-                        v3 CameraForward = V3(0.0f, 0.0f, -1.0f);
 
                         v3 CameraPosition = V3(-20.0f, 0.0f, 20.0f);
                         f32 CameraPitch = 0.0f;
@@ -624,8 +621,8 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                 LastCursorPosition = CursorPosition;
 
                                 CameraYaw += CursorPositionDelta.X * CameraHorizontalSensitivity;
-
                                 CameraPitch += CursorPositionDelta.Y * CameraVerticalSensitivity;
+
                                 CameraPitch = Clamp(CameraPitch, -89.9f, 89.9f);
                             }
 
