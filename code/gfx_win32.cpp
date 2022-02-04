@@ -84,7 +84,7 @@ Win32ReadEntireFile(char *Path, buffer *Buffer)
     {
         if (GetFileSizeEx(File, (LARGE_INTEGER *)&Buffer->Size))
         {
-            Buffer->Data = Platform.AllocateMemory(Buffer->Size);
+            Buffer->Data = (u8 *)Platform.AllocateMemory(Buffer->Size);
 
             DWORD BytesRead;
             if (ReadFile(File, Buffer->Data, Buffer->Size, &BytesRead, 0) && (BytesRead == Buffer->Size))

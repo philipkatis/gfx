@@ -89,13 +89,15 @@ OBJGetIndexSetID(index_set_table *Table, u64 Position, u64 TextureCoordinate, u6
 // TODO(philip): Documentation.
 // TODO(philip): Return success or failure.
 function void
-LoadOBJ(char *Path, mesh_asset *Asset)
+LoadOBJ(char *FilePath, mesh_asset *Asset)
 {
     Assert(Asset);
     *Asset = { };
 
+    char *DirectoryPath = ExtractDirectoryPath(FilePath);
+
     buffer FileData;
-    if (Platform.ReadEntireFile(Path, &FileData))
+    if (Platform.ReadEntireFile(FilePath, &FileData))
     {
         u64 PositionCount = 0;
         u64 TextureCoordinateCount = 0;
@@ -314,8 +316,25 @@ LoadOBJ(char *Path, mesh_asset *Asset)
             ++Pointer;
         }
 
-        Asset->VertexCount = IndexSetTable.Count;
-        Asset->Vertices = (vertex *)Platform.AllocateMemory(Asset->VertexCount * sizeof(vertex));
+        u64 VertexSize = 0;
+
+        if (PositionCount)
+        {
+            VertexSize += sizeof(v3);
+        }
+
+        if (TextureCoordinateCount)
+        {
+            VertexSize += sizeof(v2);
+        }
+
+        if (NormalCount)
+        {
+            VertexSize += sizeof(v3);
+        }
+
+        Asset->VertexData.Size = (IndexSetTable.Count * VertexSize);
+        Asset->VertexData.Data = (u8 *)Platform.AllocateMemory(Asset->VertexData.Size);
 
         for (u64 Slot = 0;
              Slot < INDEX_SET_TABLE_SLOT_COUNT;
@@ -326,10 +345,25 @@ LoadOBJ(char *Path, mesh_asset *Asset)
             {
                 index_set *Next = Set->Next;
 
-                vertex *Vertex = Asset->Vertices + Set->ID;
-                Vertex->Position = Positions[Set->Position];
-                Vertex->TextureCoordinate = TextureCoordinates[Set->TextureCoordinate];
-                Vertex->Normal = Normals[Set->Normal];
+                u8 *Pointer = ((u8 *)Asset->VertexData.Data + (Set->ID * VertexSize));
+
+                if (PositionCount)
+                {
+                    memcpy(Pointer, (Positions + Set->Position), sizeof(v3));
+                    Pointer += sizeof(v3);
+                }
+
+                if (TextureCoordinateCount)
+                {
+                    memcpy(Pointer, (TextureCoordinates + Set->TextureCoordinate), sizeof(v2));
+                    Pointer += sizeof(v2);
+                }
+
+                if (NormalCount)
+                {
+                    memcpy(Pointer, (Normals + Set->Normal), sizeof(v3));
+                    Pointer += sizeof(v3);
+                }
 
                 // TODO(philip): Change to using a memory arena.
                 Platform.FreeMemory(Set);
@@ -344,6 +378,9 @@ LoadOBJ(char *Path, mesh_asset *Asset)
              Index < MaterialInstanceCount;
              ++Index)
         {
+            material_asset *Material = Asset->Materials + Index;
+            Material->DiffuseMap = ConcatenatePaths(DirectoryPath, "head.tga");
+
             Platform.FreeMemory(MaterialNames[Index]);
         }
 
@@ -354,6 +391,8 @@ LoadOBJ(char *Path, mesh_asset *Asset)
 
         Platform.FreeFileMemory(&FileData);
     }
+
+    Platform.FreeMemory(DirectoryPath);
 }
 
 function void
@@ -366,10 +405,10 @@ FreeMeshAsset(mesh_asset *Asset)
          ++Index)
     {
         material_asset *Material = Asset->Materials + Index;
-        Platform.FreeMemory(Material->DiffuseMapPath);
+        Platform.FreeMemory(Material->DiffuseMap);
     }
 
-    Platform.FreeMemory(Asset->Vertices);
+    Platform.FreeMemory(Asset->VertexData.Data);
     Platform.FreeMemory(Asset->Indices);
     Platform.FreeMemory(Asset->Submeshes);
     Platform.FreeMemory(Asset->Materials);

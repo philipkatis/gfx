@@ -34,7 +34,7 @@ struct vertex
 
 struct material_asset
 {
-    char *DiffuseMapPath;
+    char *DiffuseMap;
 };
 
 struct submesh
@@ -44,14 +44,18 @@ struct submesh
     s64 MaterialIndex;
 };
 
+typedef u32 vertex_flags;
+enum
+{
+    VertexFlags_HasPosition             = 1,
+    VertexFlags_HasTextureCoordiante    = 2,
+    VertexFlags_HasNormal               = 3
+};
+
 struct mesh_asset
 {
-    // TODO(philip): Bitfield for what vertex data is available.
-
-    u64 VertexCount;
-
-    // TODO(philip): Change this to void pointer.
-    vertex *Vertices;
+    vertex_flags VertexFlags;
+    buffer VertexData;
 
     u64 IndexCount;
     u32 *Indices;

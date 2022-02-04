@@ -144,9 +144,7 @@ GLUploadMesh(mesh_asset *Asset)
 
     glGenBuffers(1, &Mesh.VertexBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, Mesh.VertexBuffer);
-
-    // TODO(philip): Don't use the vertex struct for the size. Find it from the mesh attribute flags.
-    glBufferData(GL_ARRAY_BUFFER, Asset->VertexCount * sizeof(vertex), Asset->Vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, Asset->VertexData.Size, Asset->VertexData.Data, GL_STATIC_DRAW);
 
     // TODO(philip): Don't hard code these. Find them from the mesh attribute flags.
     glEnableVertexAttribArray(0);

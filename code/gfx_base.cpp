@@ -57,3 +57,51 @@ SkipUntil(char *String, char Delimiter)
 
     return String;
 }
+
+//
+// NOTE(philip): File System
+//
+
+function char *
+ExtractDirectoryPath(char *FilePath)
+{
+    char *End = 0;
+
+    for (char *Character = FilePath;
+         *Character;
+         ++Character)
+    {
+        if (*Character == '/')
+        {
+            End = Character;
+        }
+    }
+
+    u64 DirectoryPathLength = (End - FilePath);
+
+    char *Path = (char *)Platform.AllocateMemory((DirectoryPathLength + 1) * sizeof(char));
+    memcpy(Path, FilePath, DirectoryPathLength * sizeof(char));
+
+    return Path;
+}
+
+function char *
+ConcatenatePaths(char *PathA, char *PathB)
+{
+    u64 PathALength = strlen(PathA);
+    u64 PathBLength = strlen(PathB);
+    u64 PathLength = (PathALength + PathBLength + 1);
+
+    char *Path = (char *)Platform.AllocateMemory((PathLength + 1) * sizeof(char));
+    char *Pointer = Path;
+
+    memcpy(Pointer, PathA, PathALength * sizeof(char));
+    Pointer += (PathALength * sizeof(char));
+
+    *Pointer = '/';
+    ++Pointer;
+
+    memcpy(Pointer, PathB, PathBLength * sizeof(char));
+
+    return Path;
+}

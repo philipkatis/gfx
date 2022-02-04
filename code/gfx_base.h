@@ -44,7 +44,7 @@ typedef double                 f64;
 
 struct buffer
 {
-    void *Data;
+    u8 *Data;
     u64 Size;
 };
 
