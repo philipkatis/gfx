@@ -24,14 +24,6 @@ struct index_set_table
     u64 Count;
 };
 
-// TODO(philip): Remove this.
-struct vertex
-{
-    v3 Position;
-    v2 TextureCoordinate;
-    v3 Normal;
-};
-
 struct material_asset
 {
     char *DiffuseMap;
@@ -47,9 +39,9 @@ struct submesh
 typedef u32 vertex_flags;
 enum
 {
-    VertexFlags_HasPosition             = 1,
-    VertexFlags_HasTextureCoordiante    = 2,
-    VertexFlags_HasNormal               = 3
+    VertexFlags_HasPositions             = 1,
+    VertexFlags_HasTextureCoordiantes    = 2,
+    VertexFlags_HasNormals               = 4
 };
 
 struct mesh_asset

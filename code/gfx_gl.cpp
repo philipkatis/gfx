@@ -146,15 +146,36 @@ GLUploadMesh(mesh_asset *Asset)
     glBindBuffer(GL_ARRAY_BUFFER, Mesh.VertexBuffer);
     glBufferData(GL_ARRAY_BUFFER, Asset->VertexData.Size, Asset->VertexData.Data, GL_STATIC_DRAW);
 
-    // TODO(philip): Don't hard code these. Find them from the mesh attribute flags.
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), 0);
+    u64 VertexSize = GetVertexSize(Asset->VertexFlags);
+    u64 AttributeIndex = 0;
+    u64 AttributeOffset = 0;
 
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(vertex), (void *)(sizeof(v3)));
+    if (Asset->VertexFlags & VertexFlags_HasPositions)
+    {
+        glEnableVertexAttribArray(AttributeIndex);
+        glVertexAttribPointer(AttributeIndex, 3, GL_FLOAT, GL_FALSE, VertexSize, (void *)AttributeOffset);
 
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(vertex), (void *)(sizeof(v3) + sizeof(v2)));
+        ++AttributeIndex;
+        AttributeOffset += sizeof(v3);
+    }
+
+    if (Asset->VertexFlags & VertexFlags_HasTextureCoordiantes)
+    {
+        glEnableVertexAttribArray(AttributeIndex);
+        glVertexAttribPointer(AttributeIndex, 2, GL_FLOAT, GL_FALSE, VertexSize, (void *)AttributeOffset);
+
+        ++AttributeIndex;
+        AttributeOffset += sizeof(v2);
+    }
+
+    if (Asset->VertexFlags & VertexFlags_HasNormals)
+    {
+        glEnableVertexAttribArray(AttributeIndex);
+        glVertexAttribPointer(AttributeIndex, 3, GL_FLOAT, GL_FALSE, VertexSize, (void *)AttributeOffset);
+
+        ++AttributeIndex;
+        AttributeOffset += sizeof(v3);
+    }
 
     glGenBuffers(1, &Mesh.IndexBuffer);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Mesh.IndexBuffer);
