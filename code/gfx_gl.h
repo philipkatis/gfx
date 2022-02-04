@@ -135,4 +135,9 @@ struct mesh
     GLuint IndexBuffer;
 };
 
+struct texture
+{
+    GLuint Handle;
+};
+
 #endif

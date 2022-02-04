@@ -505,7 +505,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         wglMakeCurrent(DeviceContext, OpenGLContext);
                         Win32_LoadGLFunctions();
 
-                        shader Shader = GL_LoadShader("assets\\shaders\\gfx_simple_vs.glsl",
+                        shader Shader = GLLoadShader("assets\\shaders\\gfx_simple_vs.glsl",
                                                       "assets\\shaders\\gfx_simple_ps.glsl");
 
                         // TODO(philip): Move these to shader loading.
@@ -516,35 +516,14 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         texture_asset TextureAsset;
                         LoadTGA("assets\\meshes\\head.tga", &TextureAsset);
 
-                        glActiveTexture(GL_TEXTURE0);
-
-                        GLuint Texture;
-                        glGenTextures(1, &Texture);
-                        glBindTexture(GL_TEXTURE_2D, Texture);
-                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-                        switch (TextureAsset.Format)
-                        {
-                            case TextureFormat_BGR:
-                            {
-                                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, TextureAsset.Width, TextureAsset.Height,
-                                             0, GL_BGR, GL_UNSIGNED_BYTE, TextureAsset.Data);
-                            } break;
-
-                            case TextureFormat_BGRA:
-                            {
-                                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, TextureAsset.Width, TextureAsset.Height,
-                                             0, GL_BGRA, GL_UNSIGNED_BYTE, TextureAsset.Data);
-                            } break;
-                        }
+                        texture Texture = GLUploadTexture2D(&TextureAsset);
 
                         FreeTextureAsset(&TextureAsset);
 
                         mesh_asset MeshAsset;
                         LoadOBJ("assets\\meshes\\woman1.obj", &MeshAsset);
 
-                        mesh Mesh = GL_UploadMeshAsset(&MeshAsset);
+                        mesh Mesh = GLUploadMesh(&MeshAsset);
 
                         FreeMeshAsset(&MeshAsset);
 
@@ -670,6 +649,7 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
 
                             // TODO(philip): Pull mesh rendering into it's own function.
                             glBindVertexArray(Mesh.VertexArray);
+                            glBindTexture(GL_TEXTURE_2D, Texture.Handle);
 
                             for (u64 SubmeshIndex = 0;
                                  SubmeshIndex < Mesh.SubmeshCount;
@@ -697,10 +677,10 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                             PreviousFrameEndTicks = FrameEndTicks;
                         }
 
-                        glDeleteTextures(1, &Texture);
+                        GLFreeTexture(&Texture);
 
-                        GL_FreeMesh(&Mesh);
-                        GL_FreeShader(&Shader);
+                        GLFreeMesh(&Mesh);
+                        GLFreeShader(&Shader);
                     }
                     else
                     {

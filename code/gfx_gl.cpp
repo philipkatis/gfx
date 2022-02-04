@@ -1,7 +1,7 @@
 // TODO(philip): Combine shader types in a single file.
 
 function GLuint
-GL_LoadShaderModule(GLenum Type, char *Path)
+GLLoadShaderModule(GLenum Type, char *Path)
 {
     GLuint Module = 0;
 
@@ -45,7 +45,7 @@ GL_LoadShaderModule(GLenum Type, char *Path)
 }
 
 function void
-GL_FreeShader(shader *Shader)
+GLFreeShader(shader *Shader)
 {
     Assert(Shader);
 
@@ -59,21 +59,17 @@ GL_FreeShader(shader *Shader)
 
     glDeleteProgram(Shader->Program);
 
-    Shader->Program = 0;
-
-    // TODO(philip): Only do this here in debug builds.
-    Shader->VertexModule = 0;
-    Shader->PixelModule = 0;
+    *Shader = { };
 }
 
 function shader
-GL_LoadShader(char *VertexModulePath, char *PixelModulePath)
+GLLoadShader(char *VertexModulePath, char *PixelModulePath)
 {
     shader Shader = { };
     Shader.Program = glCreateProgram();
 
-    Shader.VertexModule = GL_LoadShaderModule(GL_VERTEX_SHADER, VertexModulePath);
-    Shader.PixelModule = GL_LoadShaderModule(GL_FRAGMENT_SHADER, PixelModulePath);
+    Shader.VertexModule = GLLoadShaderModule(GL_VERTEX_SHADER, VertexModulePath);
+    Shader.PixelModule = GLLoadShaderModule(GL_FRAGMENT_SHADER, PixelModulePath);
 
     glAttachShader(Shader.Program, Shader.VertexModule);
     glAttachShader(Shader.Program, Shader.PixelModule);
@@ -99,7 +95,7 @@ GL_LoadShader(char *VertexModulePath, char *PixelModulePath)
         OutputDebugStringA(InfoLog);
         OutputDebugStringA("\n");
 
-        GL_FreeShader(&Shader);
+        GLFreeShader(&Shader);
     }
 
     glValidateProgram(Shader.Program);
@@ -121,7 +117,7 @@ GL_LoadShader(char *VertexModulePath, char *PixelModulePath)
         OutputDebugStringA(InfoLog);
         OutputDebugStringA("\n");
 
-        GL_FreeShader(&Shader);
+        GLFreeShader(&Shader);
     }
 
     // TODO(philip): Detach the shaders and delete them here in release builds.
@@ -130,7 +126,7 @@ GL_LoadShader(char *VertexModulePath, char *PixelModulePath)
 }
 
 function mesh
-GL_UploadMeshAsset(mesh_asset *Asset)
+GLUploadMesh(mesh_asset *Asset)
 {
     Assert(Asset);
 
@@ -172,7 +168,7 @@ GL_UploadMeshAsset(mesh_asset *Asset)
 }
 
 function void
-GL_FreeMesh(mesh *Mesh)
+GLFreeMesh(mesh *Mesh)
 {
     Assert(Mesh);
 
@@ -182,9 +178,47 @@ GL_FreeMesh(mesh *Mesh)
     glDeleteVertexArrays(1, &Mesh->VertexBuffer);
     glDeleteVertexArrays(1, &Mesh->IndexBuffer);
 
-    Mesh->SubmeshCount = 0;
-    Mesh->Submeshes = 0;
-    Mesh->VertexArray = 0;
-    Mesh->VertexBuffer = 0;
-    Mesh->IndexBuffer = 0;
+    *Mesh = { };
+}
+
+function texture
+GLUploadTexture2D(texture_asset *Asset)
+{
+    texture Texture = { };
+    Assert(Asset);
+
+    glGenTextures(1, &Texture.Handle);
+    glBindTexture(GL_TEXTURE_2D, Texture.Handle);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    switch (Asset->Format)
+    {
+        case TextureFormat_BGR:
+        {
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, Asset->Width, Asset->Height, 0, GL_BGR,
+                         GL_UNSIGNED_BYTE, Asset->Data);
+        } break;
+
+        case TextureFormat_BGRA:
+        {
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Asset->Width, Asset->Height, 0, GL_BGRA,
+                         GL_UNSIGNED_BYTE, Asset->Data);
+        } break;
+    }
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    return Texture;
+}
+
+function void
+GLFreeTexture(texture *Texture)
+{
+    Assert(Texture);
+
+    glDeleteTextures(1, &Texture->Handle);
+
+    *Texture = { };
 }
