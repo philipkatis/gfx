@@ -32,9 +32,9 @@ struct vertex
     v3 Normal;
 };
 
-struct material
+struct material_asset
 {
-
+    char *DiffuseMapPath;
 };
 
 struct submesh
@@ -60,7 +60,7 @@ struct mesh_asset
     submesh *Submeshes;
 
     u64 MaterialCount;
-    material *Materials;
+    material_asset *Materials;
 };
 
 //

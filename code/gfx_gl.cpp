@@ -132,6 +132,7 @@ GLUploadMesh(mesh_asset *Asset)
 
     mesh Mesh = { };
 
+    // TODO(philip): Sort submeshes based on material index.
     Mesh.SubmeshCount = Asset->SubmeshCount;
     Mesh.Submeshes = (submesh *)Platform.AllocateMemory(Mesh.SubmeshCount * sizeof(submesh));
 
@@ -221,4 +222,20 @@ GLFreeTexture(texture *Texture)
     glDeleteTextures(1, &Texture->Handle);
 
     *Texture = { };
+}
+
+function void
+GLDrawMesh(mesh *Mesh)
+{
+    glBindVertexArray(Mesh->VertexArray);
+
+    for (u64 Index = 0;
+         Index < Mesh->SubmeshCount;
+         ++Index)
+    {
+        submesh *Submesh = Mesh->Submeshes + Index;
+        glDrawElements(GL_TRIANGLES, Submesh->IndexCount, GL_UNSIGNED_INT, (GLvoid *)(Submesh->IndexOffset * sizeof(u32)));
+    }
+
+    glBindVertexArray(0);
 }

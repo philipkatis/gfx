@@ -647,9 +647,11 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                                                (GLfloat *)&ViewProjection);
                             glUniform3fv(CameraDirectionUniformLocation, 1, (GLfloat *)&CameraForward);
 
-                            // TODO(philip): Pull mesh rendering into it's own function.
-                            glBindVertexArray(Mesh.VertexArray);
                             glBindTexture(GL_TEXTURE_2D, Texture.Handle);
+
+                            GLDrawMesh(&Mesh);
+
+                            glBindVertexArray(Mesh.VertexArray);
 
                             for (u64 SubmeshIndex = 0;
                                  SubmeshIndex < Mesh.SubmeshCount;

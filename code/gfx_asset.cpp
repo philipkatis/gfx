@@ -338,7 +338,7 @@ LoadOBJ(char *Path, mesh_asset *Asset)
             }
         }
 
-        Asset->Materials = (material *)Platform.AllocateMemory(Asset->MaterialCount * sizeof(material));
+        Asset->Materials = (material_asset *)Platform.AllocateMemory(Asset->MaterialCount * sizeof(material_asset));
 
         for (u64 Index = 0;
              Index < MaterialInstanceCount;
@@ -361,19 +361,20 @@ FreeMeshAsset(mesh_asset *Asset)
 {
     Assert(Asset);
 
+    for (u64 Index = 0;
+         Index < Asset->MaterialCount;
+         ++Index)
+    {
+        material_asset *Material = Asset->Materials + Index;
+        Platform.FreeMemory(Material->DiffuseMapPath);
+    }
+
     Platform.FreeMemory(Asset->Vertices);
     Platform.FreeMemory(Asset->Indices);
     Platform.FreeMemory(Asset->Submeshes);
     Platform.FreeMemory(Asset->Materials);
 
-    Asset->VertexCount = 0;
-    Asset->Vertices = 0;
-    Asset->IndexCount = 0;
-    Asset->Indices = 0;
-    Asset->SubmeshCount = 0;
-    Asset->Submeshes = 0;
-    Asset->MaterialCount = 0;
-    Asset->Materials = 0;
+    *Asset = { };
 }
 
 //
@@ -512,7 +513,5 @@ FreeTextureAsset(texture_asset *Asset)
 
     Platform.FreeMemory(Asset->Data);
 
-    Asset->Data = 0;
-    Asset->Width = 0;
-    Asset->Height = 0;
+    *Asset = { };
 }
