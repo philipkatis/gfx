@@ -17,6 +17,33 @@
 #include "gfx_asset.cpp"
 #include "gfx_gl.cpp"
 
+function char *
+Win32Path(char *Path)
+{
+    u64 PathLength = strlen(Path);
+    char *NewPath = (char *)Platform.AllocateMemory((PathLength + 1) * sizeof(char));
+
+    char *Pointer = NewPath;
+
+    for (char *Character = Path;
+         *Character;
+         ++Character)
+    {
+        if (*Character == '/')
+        {
+            *Pointer = '\\';
+        }
+        else
+        {
+            *Pointer = *Character;
+        }
+
+        ++Pointer;
+    }
+
+    return NewPath;
+}
+
 //
 // NOTE(philip): Memory
 //
@@ -50,7 +77,9 @@ Win32ReadEntireFile(char *Path, buffer *Buffer)
 
     b32 Result = false;
 
-    HANDLE File = CreateFileA(Path, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    char *FilePath = Win32Path(Path);
+    HANDLE File = CreateFileA(FilePath, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+
     if (File != INVALID_HANDLE_VALUE)
     {
         if (GetFileSizeEx(File, (LARGE_INTEGER *)&Buffer->Size))
@@ -70,6 +99,8 @@ Win32ReadEntireFile(char *Path, buffer *Buffer)
 
         CloseHandle(File);
     }
+
+    Platform.FreeMemory(FilePath);
 
     return Result;
 }
@@ -505,8 +536,8 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         wglMakeCurrent(DeviceContext, OpenGLContext);
                         Win32_LoadGLFunctions();
 
-                        shader Shader = GLLoadShader("assets\\shaders\\gfx_simple_vs.glsl",
-                                                      "assets\\shaders\\gfx_simple_ps.glsl");
+                        shader Shader = GLLoadShader("assets/shaders/gfx_simple_vs.glsl",
+                                                     "assets/shaders/gfx_simple_ps.glsl");
 
                         // TODO(philip): Move these to shader loading.
                         GLint ViewProjectionUniformLocation = glGetUniformLocation(Shader.Program, "ViewProjection");
@@ -514,18 +545,21 @@ WinMain(HINSTANCE Instance, HINSTANCE PreviousInstance, LPSTR Arguments, s32 Sho
                         GLint CameraDirectionUniformLocation = glGetUniformLocation(Shader.Program, "CameraDirection");
 
                         texture_asset TextureAsset;
-                        LoadTGA("assets\\meshes\\head.tga", &TextureAsset);
+                        LoadTGA("assets/meshes/head.tga", &TextureAsset);
 
                         texture Texture = GLUploadTexture2D(&TextureAsset);
 
                         FreeTextureAsset(&TextureAsset);
 
                         mesh_asset MeshAsset;
-                        LoadOBJ("assets\\meshes\\woman1.obj", &MeshAsset);
+                        LoadOBJ("assets/meshes/woman1.obj", &MeshAsset);
 
                         mesh Mesh = GLUploadMesh(&MeshAsset);
 
                         FreeMeshAsset(&MeshAsset);
+
+                        char *Test = "this/is/a/test/of/a/path";
+                        char *NewPath = Win32Path(Test);
 
                         // TODO(philip): Support resizing.
                         iv2 WindowSize = Win32_GetWindowSize(Window);
