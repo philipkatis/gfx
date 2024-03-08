@@ -1,9 +1,27 @@
 #ifndef GFX_ASSET_H
 #define GFX_ASSET_H
 
-//
-// NOTE(philip): OBJ
-//
+typedef u32 material_properties;
+enum
+{
+    MaterialProperty_None          = 0,
+    MaterialProperty_Unlit         = 1,
+    MaterialProperty_Wireframe     = 2
+};
+
+struct material_asset
+{
+    char *Name;
+
+    material_properties Properties;
+
+    v4 BaseColor;
+    char *DiffuseMap;
+
+    f32 Ambient;
+    f32 Diffuse;
+    f32 Specular;
+};
 
 struct index_set
 {
@@ -15,7 +33,6 @@ struct index_set
     index_set *Next;
 };
 
-// TODO(philip): Is this good enough?
 #define INDEX_SET_TABLE_SLOT_COUNT 4096
 
 struct index_set_table
@@ -24,44 +41,39 @@ struct index_set_table
     u64 Count;
 };
 
-struct material_asset
+typedef u32 vertex_attributes;
+enum
 {
-    char *DiffuseMap;
+    VertexAttribute_None                      = 0,
+    VertexAttribute_HasPositions              = 1,
+    VertexAttribute_HasTextureCoordinates     = 2,
+    VertexAttribute_HasNormals                = 4
 };
 
 struct submesh
 {
-    u64 IndexOffset;
     u64 IndexCount;
-    s64 MaterialIndex;
-};
+    u64 IndexDataOffset;
 
-typedef u32 vertex_attribute_flags;
-enum
-{
-    VertexAttributeFlags_Position             = 1,
-    VertexAttributeFlags_TextureCoordiante    = 2,
-    VertexAttributeFlags_Normal               = 4
+    s64 MaterialIndex;
 };
 
 struct mesh_asset
 {
-    vertex_attribute_flags VertexAttributeFlags;
-    buffer VertexData;
+    vertex_attributes VertexAttributes;
+
+    u64 VertexDataSize;
+    u8 *VertexData;
 
     u64 IndexCount;
-    u32 *Indices;
+    u32 *IndexData;
 
     u64 SubmeshCount;
     submesh *Submeshes;
 
-    u64 MaterialCount;
-    material_asset *Materials;
+    u64 MaterialAssetCount;
+    material_asset *MaterialAssets;
 };
-
-//
-// NOTE(philip): TGA
-//
 
 #pragma pack(push, 1)
 
@@ -83,8 +95,6 @@ struct tga_header
     u8 ImageDescriptor;
 };
 
-// TODO(philip): Static assert to make sure the size of this is always correct.
-
 #pragma pack(pop)
 
 typedef u32 texture_format;
@@ -97,11 +107,11 @@ enum
 
 struct texture_asset
 {
-    u8 *Data;
-
     texture_format Format;
     u32 Width;
     u32 Height;
+
+    u8 *Data;
 };
 
 #endif

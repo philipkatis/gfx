@@ -1,16 +1,12 @@
 #ifndef GFX_BASE_H
 #define GFX_BASE_H
 
-// TODO(philip): Platform and compiler detection.
-// TODO(philip): Configuration setup.
-
 //
 // NOTE(philip): Base Keywords
 //
 
-#define function               static
-#define global                 static
-#define local_persistant       static
+#define function static
+#define global   static
 
 //
 // NOTE(philip): Base Types
@@ -26,21 +22,14 @@ typedef signed short           s16;
 typedef signed int             s32;
 typedef signed long long       s64;
 
-typedef s32                    b32;
-
 typedef float                  f32;
 typedef double                 f64;
 
-// TODO(philip): Ensure proper size for base types during compile time.
+typedef s32                    b32;
 
 //
-// NOTE(philip): Assert Macro
+// NOTE(philip): Base Structures
 //
-
-// TODO(philip): Only enable this on debug builds.
-#define Assert(Condition) if (!(Condition)) { *(u64 *)0 = 0; }
-
-// TODO(philip): Array count macro.
 
 struct buffer
 {

@@ -1,9 +1,284 @@
-//
-// NOTE(philip): OBJ
-//
+function void
+LoadMaterialAsset(char *DirectoryPath, char *FileName, u64 *AssetCount, material_asset **Assets)
+{
+    char *FilePath = ConcatenatePaths(DirectoryPath, FileName);
+
+    buffer FileData;
+    if (OS_ReadEntireFile(FilePath, &FileData))
+    {
+        char *Pointer = (char *)FileData.Data;
+        char *End = (char *)FileData.Data + FileData.Size;
+
+        while (Pointer != End)
+        {
+            if (memcmp(Pointer, "newmtl", (6 * sizeof(char))) == 0)
+            {
+                ++(*AssetCount);
+            }
+
+            Pointer = SkipLine(Pointer);
+            ++Pointer;
+        }
+
+        *Assets = (material_asset *)OS_AllocateMemory(*AssetCount * sizeof(material_asset));
+        s64 Index = -1;
+
+        Pointer = (char *)FileData.Data;
+        while (Pointer != End)
+        {
+            switch (*Pointer)
+            {
+                case 'n':
+                {
+                    char *Property = Pointer;
+
+                    Pointer = SkipUntilWhitespace(++Pointer);
+                    *Pointer = 0;
+
+                    if (StringCompare(Property, "newmtl"))
+                    {
+                        Pointer = SkipWhitespace(++Pointer);
+                        char *Name = Pointer;
+
+                        Pointer = SkipUntilWhitespace(++Pointer);
+                        *Pointer = 0;
+
+                        material_asset *Asset = *Assets + ++Index;
+
+                        u64 NameLength = strlen(Name);
+                        Asset->Name = (char *)OS_AllocateMemory((NameLength + 1) * sizeof(char));
+                        strcpy(Asset->Name, Name);
+
+                        Asset->Properties = MaterialProperty_None;
+                    }
+                    else
+                    {
+                        Pointer = SkipLine(++Pointer);
+                    }
+                } break;
+
+                case 'K':
+                {
+                    ++Pointer;
+
+                    switch (*Pointer)
+                    {
+                        case 'a':
+                        {
+                            Pointer = SkipWhitespace(++Pointer);
+                            char *ValueString = Pointer;
+
+                            Pointer = SkipUntilWhitespace(++Pointer);
+                            *Pointer = 0;
+
+                            material_asset *Asset = *Assets + Index;
+                            Asset->Ambient = atof(ValueString);
+                        } break;
+
+                        case 'd':
+                        {
+                            Pointer = SkipWhitespace(++Pointer);
+                            char *ValueString = Pointer;
+
+                            Pointer = SkipUntilWhitespace(++Pointer);
+                            *Pointer = 0;
+
+                            material_asset *Asset = *Assets + Index;
+                            Asset->Diffuse = atof(ValueString);
+                        } break;
+
+                        case 's':
+                        {
+                            Pointer = SkipWhitespace(++Pointer);
+                            char *ValueString = Pointer;
+
+                            Pointer = SkipUntilWhitespace(++Pointer);
+                            *Pointer = 0;
+
+                            material_asset *Asset = *Assets + Index;
+                            Asset->Specular = atof(ValueString);
+                        } break;
+                    }
+
+                    Pointer = SkipLine(++Pointer);
+                } break;
+
+                case 'm':
+                {
+                    char *Property = Pointer;
+
+                    Pointer = SkipUntilWhitespace(++Pointer);
+                    *Pointer = 0;
+
+                    if (StringCompare(Property, "map_Kd"))
+                    {
+                        Pointer = SkipWhitespace(++Pointer);
+                        char *FileName = Pointer;
+
+                        Pointer = SkipUntilWhitespace(++Pointer);
+                        *Pointer = 0;
+
+                        material_asset *Asset = *Assets + Index;
+                        Asset->DiffuseMap = ConcatenatePaths(DirectoryPath, FileName);
+                    }
+                    else
+                    {
+                        Pointer = SkipLine(++Pointer);
+                    }
+                };
+
+                default:
+                {
+                    Pointer = SkipLine(Pointer);
+                } break;
+            }
+
+            ++Pointer;
+        }
+
+        OS_FreeFileMemory(FileData);
+    }
+
+    OS_FreeMemory(FilePath);
+}
+
+function void
+FreeMaterialAsset(material_asset Asset)
+{
+    OS_FreeMemory(Asset.Name);
+    OS_FreeMemory(Asset.DiffuseMap);
+}
+
+function u64
+GetVertexSize(vertex_attributes Attributes)
+{
+    u64 Size = 0;
+
+    if (Attributes & VertexAttribute_HasPositions)
+    {
+        Size += sizeof(v3);
+    }
+
+    if (Attributes & VertexAttribute_HasTextureCoordinates)
+    {
+        Size += sizeof(v2);
+    }
+
+    if (Attributes & VertexAttribute_HasNormals)
+    {
+        Size += sizeof(v3);
+    }
+
+    return Size;
+}
+
+function mesh_asset
+GenerateUVSphere(u64 LatitudeCount, u64 LongitudeCount)
+{
+    mesh_asset Asset = { };
+
+    Asset.VertexDataSize = (((LatitudeCount - 1) * LongitudeCount) + 2) * sizeof(v3);
+    Asset.VertexData = (u8 *)OS_AllocateMemory(Asset.VertexDataSize);
+    v3 *VertexPointer = (v3 *)Asset.VertexData;
+
+    *VertexPointer = V3(0.0f, 1.0f, 0.0f);
+    ++VertexPointer;
+
+    for (u64 LatitudeIndex = 0;
+         LatitudeIndex < (LatitudeCount - 1);
+         ++LatitudeIndex)
+    {
+        f32 LatitudeAngle = (M_PI * ((f32)(LatitudeIndex + 1) / (f32)LatitudeCount));
+        f32 LatitudeAngleSin = sinf(LatitudeAngle);
+        f32 LatitudeAngleCos = cosf(LatitudeAngle);
+
+        for (u64 LongitudeIndex = 0;
+             LongitudeIndex < LongitudeCount;
+             ++LongitudeIndex)
+        {
+            f32 LongitudeAngle = (2.0f * M_PI * ((f32)LongitudeIndex / (f32)LongitudeCount));
+            f32 LongitudeAngleSin = sinf(LongitudeAngle);
+            f32 LongitudeAngleCos = cosf(LongitudeAngle);
+
+            *VertexPointer = V3(LatitudeAngleSin * LongitudeAngleCos,
+                                LatitudeAngleCos,
+                                LatitudeAngleSin * LongitudeAngleSin);
+            ++VertexPointer;
+        }
+    }
+
+    *VertexPointer = V3(0.0f, -1.0f, 0.0f);
+
+    Asset.IndexCount = LatitudeCount * LongitudeCount * 6;
+    Asset.IndexData = (u32 *)OS_AllocateMemory(Asset.IndexCount * sizeof(u32));
+    u32 *IndexPointer = Asset.IndexData;
+
+    for (u32 Index = 0;
+         Index < LongitudeCount;
+         ++Index)
+    {
+        *IndexPointer = 0;
+        ++IndexPointer;
+
+        *IndexPointer = (((Index + 1) % LongitudeCount) + 1);
+        ++IndexPointer;
+
+        *IndexPointer = (Index + 1);
+        ++IndexPointer;
+    }
+
+    for (u32 LatitudeIndex = 0;
+         LatitudeIndex < (LatitudeCount - 2);
+         ++LatitudeIndex)
+    {
+        u32 IndexOffset1 = ((LatitudeIndex * LongitudeCount) + 1);
+        u32 IndexOffset2 = (((LatitudeIndex + 1) * LongitudeCount) + 1);
+
+        for (u32 LongitudeIndex = 0;
+             LongitudeIndex < LongitudeCount;
+             ++LongitudeIndex)
+        {
+            *IndexPointer = (IndexOffset1 + LongitudeIndex);
+            ++IndexPointer;
+
+            *IndexPointer = (IndexOffset1 + ((LongitudeIndex + 1) % LongitudeCount));
+            ++IndexPointer;
+
+            *IndexPointer = (IndexOffset2 + ((LongitudeIndex + 1) % LongitudeCount));
+            ++IndexPointer;
+
+            *IndexPointer = (IndexOffset2 + ((LongitudeIndex + 1) % LongitudeCount));
+            ++IndexPointer;
+
+            *IndexPointer = (IndexOffset2 + LongitudeIndex);
+            ++IndexPointer;
+
+            *IndexPointer = (IndexOffset1 + LongitudeIndex);
+            ++IndexPointer;
+        }
+    }
+
+    for (u32 Index = 0;
+         Index < LongitudeCount;
+         ++Index)
+    {
+        *IndexPointer = ((LatitudeCount - 1) * LongitudeCount) + 1;
+        ++IndexPointer;
+
+        *IndexPointer = Index + LongitudeCount * (LatitudeCount - 2) + 1;
+        ++IndexPointer;
+
+        *IndexPointer = (Index + 1) % LongitudeCount + LongitudeCount * (LatitudeCount - 2) + 1;
+        ++IndexPointer;
+    }
+
+    Asset.VertexAttributes |= VertexAttribute_HasPositions;
+
+    return Asset;
+}
 
 function char *
-OBJParseV2(char *Pointer, v2 *Vector)
+ParseVector(char *Pointer, v2 *Vector)
 {
     for (u32 ComponentIndex = 0;
          ComponentIndex < 2;
@@ -22,7 +297,7 @@ OBJParseV2(char *Pointer, v2 *Vector)
 }
 
 function char *
-OBJParseV3(char *Pointer, v3 *Vector)
+ParseVector(char *Pointer, v3 *Vector)
 {
     for (u32 ComponentIndex = 0;
          ComponentIndex < 3;
@@ -41,7 +316,7 @@ OBJParseV3(char *Pointer, v3 *Vector)
 }
 
 function u32
-OBJGetIndexSetID(index_set_table *Table, u64 Position, u64 TextureCoordinate, u64 Normal)
+GetIndexSetID(index_set_table *Table, u64 Position, u64 TextureCoordinate, u64 Normal)
 {
     u32 ID = 0;
     b32 Found = false;
@@ -66,8 +341,7 @@ OBJGetIndexSetID(index_set_table *Table, u64 Position, u64 TextureCoordinate, u6
 
     if (!Found)
     {
-        // TODO(philip): Change to using a memory arena.
-        index_set *Set = (index_set *)Platform.AllocateMemory(sizeof(index_set));
+        index_set *Set = (index_set *)OS_AllocateMemory(sizeof(index_set));
 
         Set->ID = Table->Count++;
         Set->Position = Position;
@@ -83,137 +357,47 @@ OBJGetIndexSetID(index_set_table *Table, u64 Position, u64 TextureCoordinate, u6
     return ID;
 }
 
-function u64
-GetVertexSize(vertex_attribute_flags Flags)
+function char *
+ParseIndexSet(char *Pointer, index_set_table *Table, u32 *ID)
 {
-    u64 Size = 0;
+    Pointer = SkipWhitespace(++Pointer);
 
-    if (Flags & VertexAttributeFlags_Position)
-    {
-        Size += sizeof(v3);
-    }
+    char *PositionString = Pointer;
 
-    if (Flags & VertexAttributeFlags_TextureCoordiante)
-    {
-        Size += sizeof(v2);
-    }
+    Pointer = SkipUntil(Pointer, '/');
+    *Pointer = 0;
 
-    if (Flags & VertexAttributeFlags_Normal)
-    {
-        Size += sizeof(v3);
-    }
+    char *TextureCoordinateString = ++Pointer;
 
-    return Size;
+    Pointer = SkipUntil(Pointer, '/');
+    *Pointer = 0;
+
+    char *NormalString = ++Pointer;
+
+    Pointer = SkipUntilWhitespace(Pointer);
+    *Pointer = 0;
+
+    u64 Position = atoi(PositionString) - 1;
+    u64 TextureCoordinate = atoi(TextureCoordinateString) - 1;
+    u64 Normal = atoi(NormalString) - 1;
+
+    *ID = GetIndexSetID(Table, Position, TextureCoordinate, Normal);
+
+    return Pointer;
 }
 
-// TODO(philip): Documentation.
-// TODO(philip): Return success or failure.
-function void
-LoadOBJ(char *FilePath, mesh_asset *Asset)
+function mesh_asset
+LoadMeshAsset(char *FilePath)
 {
-    Assert(Asset);
-    *Asset = { };
-
-    char *DirectoryPath = ExtractDirectoryPath(FilePath);
+    mesh_asset Asset = { };
 
     buffer FileData;
-    if (Platform.ReadEntireFile(FilePath, &FileData))
+    if (OS_ReadEntireFile(FilePath, &FileData))
     {
         u64 PositionCount = 0;
         u64 TextureCoordinateCount = 0;
         u64 NormalCount = 0;
         u64 TriangleCount = 0;
-        u64 MaterialInstanceCount = 0;
-
-        {
-            char *Pointer = (char *)FileData.Data;
-            char *End = (char *)FileData.Data + FileData.Size;
-
-            while (Pointer != End)
-            {
-                switch (*Pointer)
-                {
-                    case 'v':
-                    {
-                        switch (*(++Pointer))
-                        {
-                            case 't':
-                            {
-                                ++TextureCoordinateCount;
-                            } break;
-
-                            case 'n':
-                            {
-                                ++NormalCount;
-                            } break;
-
-                            default:
-                            {
-                                ++PositionCount;
-                            } break;
-                        }
-                    } break;
-
-                    case 'g':
-                    {
-                        ++Asset->SubmeshCount;
-                    } break;
-
-                    case 'u':
-                    {
-                        // TODO(philip): Replace memcmp.
-                        if (memcmp(Pointer, "usemtl", 6 * sizeof(char)) == 0)
-                        {
-                            ++MaterialInstanceCount;
-                        }
-                    } break;
-
-                    case 'f':
-                    {
-                        ++TriangleCount;
-                    } break;
-                }
-
-                Pointer = SkipLine(Pointer);
-                ++Pointer;
-            }
-        }
-
-        v3 *Positions = 0;
-        v2 *TextureCoordinates = 0;
-        v3 *Normals = 0;
-
-        if (PositionCount)
-        {
-            Positions = (v3 *)Platform.AllocateMemory(PositionCount * sizeof(v3));
-            Asset->VertexAttributeFlags |= VertexAttributeFlags_Position;
-        }
-
-        if (TextureCoordinateCount)
-        {
-            TextureCoordinates = (v2 *)Platform.AllocateMemory(TextureCoordinateCount * sizeof(v2));
-            Asset->VertexAttributeFlags |= VertexAttributeFlags_TextureCoordiante;
-        }
-
-        if (NormalCount)
-        {
-            Normals = (v3 *)Platform.AllocateMemory(NormalCount * sizeof(v3));
-            Asset->VertexAttributeFlags |= VertexAttributeFlags_Normal;
-        }
-
-        u64 PositionIndex = 0;
-        u64 TextureCoordinateIndex = 0;
-        u64 NormalIndex = 0;
-
-        index_set_table IndexSetTable = { };
-
-        Asset->Indices = (u32 *)Platform.AllocateMemory(TriangleCount * 3 * sizeof(u32));
-
-        Asset->Submeshes = (submesh *)Platform.AllocateMemory(Asset->SubmeshCount * sizeof(submesh));
-        s64 SubmeshIndex = -1;
-
-        char **MaterialNames = (char **)Platform.AllocateMemory(MaterialInstanceCount * sizeof(char *));
-        s64 CurrentMaterialIndex = -1;
 
         char *Pointer = (char *)FileData.Data;
         char *End = (char *)FileData.Data + FileData.Size;
@@ -228,20 +412,115 @@ LoadOBJ(char *FilePath, mesh_asset *Asset)
                     {
                         case 't':
                         {
+                            ++TextureCoordinateCount;
+                        } break;
+
+                        case 'n':
+                        {
+                            ++NormalCount;
+                        } break;
+
+                        default:
+                        {
+                            ++PositionCount;
+                        } break;
+                    }
+                } break;
+
+                case 'g':
+                {
+                    ++Asset.SubmeshCount;
+                } break;
+
+                case 'f':
+                {
+                    ++TriangleCount;
+                } break;
+            }
+
+            Pointer = SkipLine(Pointer);
+            ++Pointer;
+        }
+
+        if (PositionCount)
+        {
+            Asset.VertexAttributes |= VertexAttribute_HasPositions;
+        }
+
+        if (TextureCoordinateCount)
+        {
+            Asset.VertexAttributes |= VertexAttribute_HasTextureCoordinates;
+        }
+
+        if (NormalCount)
+        {
+            Asset.VertexAttributes |= VertexAttribute_HasNormals;
+        }
+
+        Asset.IndexData = (u32 *)OS_AllocateMemory(TriangleCount * 3 * sizeof(u32));
+        Asset.Submeshes = (submesh *)OS_AllocateMemory(Asset.SubmeshCount * sizeof(submesh));
+
+        v3 *Positions = (v3 *)OS_AllocateMemory(PositionCount * sizeof(v3));
+        v2 *TextureCoordinates = (v2 *)OS_AllocateMemory(TextureCoordinateCount * sizeof(v2));
+        v3 *Normals = (v3 *)OS_AllocateMemory(NormalCount * sizeof(v3));
+
+        u64 PositionIndex = 0;
+        u64 TextureCoordinateIndex = 0;
+        u64 NormalIndex = 0;
+        s64 SubmeshIndex = -1;
+
+        index_set_table IndexSetTable = { };
+
+        Pointer = (char *)FileData.Data;
+        while (Pointer != End)
+        {
+            switch (*Pointer)
+            {
+                case 'm':
+                {
+                    char *Property = Pointer;
+
+                    Pointer = SkipUntilWhitespace(++Pointer);
+                    *Pointer = 0;
+
+                    if (StringCompare(Property, "mtllib"))
+                    {
+                        Pointer = SkipWhitespace(++Pointer);
+                        char *FileName = Pointer;
+
+                        Pointer = SkipUntilWhitespace(++Pointer);
+                        *Pointer = 0;
+
+                        char *DirectoryPath = ExtractDirectoryPath(FilePath);
+                        LoadMaterialAsset(DirectoryPath, FileName, &Asset.MaterialAssetCount, &Asset.MaterialAssets);
+                        OS_FreeMemory(DirectoryPath);
+                    }
+                    else
+                    {
+                        Pointer = SkipLine(++Pointer);
+                    }
+                } break;
+
+                case 'v':
+                {
+                    switch (*(++Pointer))
+                    {
+                        case 't':
+                        {
                             v2 *TextureCoordinate = TextureCoordinates + TextureCoordinateIndex++;
-                            Pointer = OBJParseV2(Pointer, TextureCoordinate);
+                            Pointer = ParseVector(Pointer, TextureCoordinate);
                         } break;
 
                         case 'n':
                         {
                             v3 *Normal = Normals + NormalIndex++;
-                            Pointer = OBJParseV3(Pointer, Normal);
+                            Pointer = ParseVector(Pointer, Normal);
                         } break;
 
                         default:
                         {
                             v3 *Position = Positions + PositionIndex++;
-                            Pointer = OBJParseV3(Pointer, Position);
+                            Pointer = ParseVector(Pointer, Position);
                         } break;
                     }
                 } break;
@@ -250,61 +529,47 @@ LoadOBJ(char *FilePath, mesh_asset *Asset)
                 {
                     Pointer = SkipLine(Pointer);
 
-                    submesh *Submesh = Asset->Submeshes + ++SubmeshIndex;
-                    Submesh->IndexOffset = Asset->IndexCount;
-                    Submesh->MaterialIndex = CurrentMaterialIndex;
+                    submesh *Submesh = Asset.Submeshes + ++SubmeshIndex;
+                    Submesh->IndexDataOffset = Asset.IndexCount;
+                    Submesh->MaterialIndex = -1;
                 } break;
 
                 case 'u':
                 {
-                    char *PropertyName = Pointer;
+                    char *Property = Pointer;
 
                     Pointer = SkipUntilWhitespace(++Pointer);
                     *Pointer = 0;
 
-                    // TODO(philip): Replace strcmp.
-                    if (strcmp(PropertyName, "usemtl") == 0)
+                    if (StringCompare(Property, "usemtl"))
                     {
                         Pointer = SkipWhitespace(++Pointer);
-                        char *MaterialName = Pointer;
+                        char *Name = Pointer;
 
                         Pointer = SkipUntilWhitespace(++Pointer);
                         *Pointer = 0;
 
+                        s64 MaterialAssetIndex = -1;
+
                         for (u64 Index = 0;
-                             Index < MaterialInstanceCount;
+                             Index < Asset.MaterialAssetCount;
                              ++Index)
                         {
-                            if (MaterialNames[Index])
-                            {
-                                if (strcmp(MaterialNames[Index], MaterialName) == 0)
-                                {
-                                    CurrentMaterialIndex = Index;
-                                    break;
-                                }
-                            }
-                            else
-                            {
-                                u64 MaterialNameLength = strlen(MaterialName);
-                                MaterialNames[Index] = (char *)Platform.AllocateMemory((MaterialNameLength + 1) * sizeof(char));
-                                strcpy(MaterialNames[Index], MaterialName);
+                            material_asset *MaterialAsset = Asset.MaterialAssets + Index;
 
-                                CurrentMaterialIndex = Index;
-                                ++Asset->MaterialCount;
-
+                            if (StringCompare(MaterialAsset->Name, Name))
+                            {
+                                MaterialAssetIndex = Index;
                                 break;
                             }
                         }
 
-                        submesh *Submesh = Asset->Submeshes + SubmeshIndex;
-                        if (Submesh->IndexCount == 0)
-                        {
-                            Submesh->MaterialIndex = CurrentMaterialIndex;
-                        }
+                        submesh *Submesh = Asset.Submeshes + SubmeshIndex;
+                        Submesh->MaterialIndex = MaterialAssetIndex;
                     }
                     else
                     {
-                        Pointer = SkipLine(Pointer);
+                        Pointer = SkipLine(++Pointer);
                     }
                 } break;
 
@@ -314,60 +579,11 @@ LoadOBJ(char *FilePath, mesh_asset *Asset)
                          SetIndex < 3;
                          ++SetIndex)
                     {
-                        char *PositionString = 0;
-                        char *TextureCoordinateString = 0;
-                        char *NormalString = 0;
-
-                        Pointer = SkipWhitespace(++Pointer);
-
-                        if (Asset->VertexAttributeFlags & VertexAttributeFlags_Position)
-                        {
-                            PositionString = Pointer;
-                        }
-
-                        if (Asset->VertexAttributeFlags & VertexAttributeFlags_TextureCoordiante)
-                        {
-                            Pointer = SkipUntil(Pointer, '/');
-                            *Pointer = 0;
-
-                            TextureCoordinateString = ++Pointer;
-                        }
-
-                        if (Asset->VertexAttributeFlags & VertexAttributeFlags_Normal)
-                        {
-                            Pointer = SkipUntil(Pointer, '/');
-                            *Pointer = 0;
-
-                            NormalString = ++Pointer;
-                        }
-
-                        Pointer = SkipUntilWhitespace(Pointer);
-                        *Pointer = 0;
-
-                        u64 Position = 0;
-                        u64 TextureCoordinate = 0;
-                        u64 Normal = 0;
-
-                        if (Asset->VertexAttributeFlags & VertexAttributeFlags_Position)
-                        {
-                            Position = atoi(PositionString) - 1;
-                        }
-
-                        if (Asset->VertexAttributeFlags & VertexAttributeFlags_TextureCoordiante)
-                        {
-                            TextureCoordinate = atoi(TextureCoordinateString) - 1;
-                        }
-
-                        if (Asset->VertexAttributeFlags & VertexAttributeFlags_Normal)
-                        {
-                            Normal = atoi(NormalString) - 1;
-                        }
-
-                        u64 ID = OBJGetIndexSetID(&IndexSetTable, Position, TextureCoordinate, Normal);
-                        Asset->Indices[Asset->IndexCount++] = ID;
+                        u32 *ID = (Asset.IndexData + Asset.IndexCount++);
+                        Pointer = ParseIndexSet(Pointer, &IndexSetTable, ID);
                     }
 
-                    submesh *Submesh = Asset->Submeshes + SubmeshIndex;
+                    submesh *Submesh = Asset.Submeshes + SubmeshIndex;
                     Submesh->IndexCount += 3;
                 } break;
 
@@ -380,144 +596,95 @@ LoadOBJ(char *FilePath, mesh_asset *Asset)
             ++Pointer;
         }
 
-        u64 VertexSize = GetVertexSize(Asset->VertexAttributeFlags);
-        Asset->VertexData.Size = (IndexSetTable.Count * VertexSize);
-        Asset->VertexData.Data = (u8 *)Platform.AllocateMemory(Asset->VertexData.Size);
+        u64 VertexSize = GetVertexSize(Asset.VertexAttributes);
+        Asset.VertexDataSize = (IndexSetTable.Count * VertexSize);
+        Asset.VertexData = (u8 *)OS_AllocateMemory(Asset.VertexDataSize);
 
         for (u64 Slot = 0;
              Slot < INDEX_SET_TABLE_SLOT_COUNT;
              ++Slot)
         {
             index_set *Set = IndexSetTable.Slots[Slot];
+
             while (Set)
             {
-                u8 *Pointer = ((u8 *)Asset->VertexData.Data + (Set->ID * VertexSize));
+                u8 *VertexPointer = (Asset.VertexData + (Set->ID * VertexSize));
 
-                if (Asset->VertexAttributeFlags & VertexAttributeFlags_Position)
-                {
-                    memcpy(Pointer, (Positions + Set->Position), sizeof(v3));
-                    Pointer += sizeof(v3);
-                }
+                memcpy(VertexPointer, (Positions + Set->Position), sizeof(v3));
+                VertexPointer += sizeof(v3);
 
-                if (Asset->VertexAttributeFlags & VertexAttributeFlags_TextureCoordiante)
-                {
-                    memcpy(Pointer, (TextureCoordinates + Set->TextureCoordinate), sizeof(v2));
-                    Pointer += sizeof(v2);
-                }
+                memcpy(VertexPointer, (TextureCoordinates + Set->TextureCoordinate), sizeof(v2));
+                VertexPointer += sizeof(v2);
 
-                if (Asset->VertexAttributeFlags & VertexAttributeFlags_Normal)
-                {
-                    memcpy(Pointer, (Normals + Set->Normal), sizeof(v3));
-                    Pointer += sizeof(v3);
-                }
+                memcpy(VertexPointer, (Normals + Set->Normal), sizeof(v3));
+                VertexPointer += sizeof(v3);
 
-                // TODO(philip): Change to using a memory arena.
                 index_set *Next = Set->Next;
-                Platform.FreeMemory(Set);
+                OS_FreeMemory(Set);
                 Set = Next;
             }
         }
 
-        Asset->Materials = (material_asset *)Platform.AllocateMemory(Asset->MaterialCount * sizeof(material_asset));
+        OS_FreeMemory(Positions);
+        OS_FreeMemory(TextureCoordinates);
+        OS_FreeMemory(Normals);
 
-        for (u64 Index = 0;
-             Index < MaterialInstanceCount;
-             ++Index)
-        {
-            material_asset *Material = Asset->Materials + Index;
-            Material->DiffuseMap = ConcatenatePaths(DirectoryPath, "head.tga");
-
-            Platform.FreeMemory(MaterialNames[Index]);
-        }
-
-        Platform.FreeMemory(MaterialNames);
-        Platform.FreeMemory(Normals);
-        Platform.FreeMemory(TextureCoordinates);
-        Platform.FreeMemory(Positions);
-
-        Platform.FreeFileMemory(&FileData);
+        OS_FreeFileMemory(FileData);
     }
 
-    Platform.FreeMemory(DirectoryPath);
+    return Asset;
 }
 
 function void
-FreeMeshAsset(mesh_asset *Asset)
+FreeMeshAsset(mesh_asset Asset)
 {
-    Assert(Asset);
-
     for (u64 Index = 0;
-         Index < Asset->MaterialCount;
+         Index < Asset.MaterialAssetCount;
          ++Index)
     {
-        material_asset *Material = Asset->Materials + Index;
-        Platform.FreeMemory(Material->DiffuseMap);
+        FreeMaterialAsset(Asset.MaterialAssets[Index]);
     }
 
-    Platform.FreeMemory(Asset->VertexData.Data);
-    Platform.FreeMemory(Asset->Indices);
-    Platform.FreeMemory(Asset->Submeshes);
-    Platform.FreeMemory(Asset->Materials);
-
-    *Asset = { };
+    OS_FreeMemory(Asset.VertexData);
+    OS_FreeMemory(Asset.IndexData);
+    OS_FreeMemory(Asset.Submeshes);
+    OS_FreeMemory(Asset.MaterialAssets);
 }
 
-//
-// NOTE(philip): TGA
-//
-
-// TODO(philip): Documentation.
-// TODO(philip): Return success or failure.
-function void
-LoadTGA(char *Path, texture_asset *Asset)
+function texture_asset
+LoadTextureAsset(char *FilePath)
 {
-    Assert(Asset);
-
-    // TODO(philip): Redundant?
-    *Asset = { };
+    texture_asset Asset = { };
 
     buffer FileData;
-    if (Platform.ReadEntireFile(Path, &FileData))
+    if (OS_ReadEntireFile(FilePath, &FileData))
     {
-        u8 *Pointer = (u8 *)FileData.Data;
+        u8 *Pointer = FileData.Data;
 
         tga_header *Header = (tga_header *)Pointer;
         Pointer += sizeof(tga_header);
-
-        // NOTE(philip): Make sure we don't get something we do not support.
-        Assert(Header->IDLength == 0);
-        Assert(Header->ColorMapType == 0);
-        Assert((Header->ImageType == 2) || (Header->ImageType == 10));
-        Assert(Header->ColorMapFirstEntryIndex == 0);
-        Assert(Header->ColorMapEntryCount == 0);
-        Assert(Header->BitsPerColorMapEntry == 0);
-        Assert(Header->OriginX == 0);
-        Assert(Header->OriginY == 0);
-        Assert(Header->Width != 0);
-        Assert(Header->Height != 0);
-        Assert((Header->BitsPerPixel == 24) || (Header->BitsPerPixel == 32));
 
         u32 BytesPerPixel = (Header->BitsPerPixel / 8);
         switch (BytesPerPixel)
         {
             case 3:
             {
-                Asset->Format = TextureFormat_BGR;
+                Asset.Format = TextureFormat_BGR;
             } break;
 
             case 4:
             {
-                Asset->Format = TextureFormat_BGRA;
+                Asset.Format = TextureFormat_BGRA;
             } break;
         }
 
-        Asset->Width = Header->Width;
-        Asset->Height = Header->Height;
+        Asset.Width = Header->Width;
+        Asset.Height = Header->Height;
 
-        u64 PixelCount = (Asset->Width * Asset->Height);
+        u64 PixelCount = (Asset.Width * Asset.Height);
         u64 Size = (PixelCount * BytesPerPixel);
 
-        Asset->Data = (u8 *)Platform.AllocateMemory(Size);
+        Asset.Data = (u8 *)OS_AllocateMemory(Size);
 
         switch (Header->ImageType)
         {
@@ -525,7 +692,7 @@ LoadTGA(char *Path, texture_asset *Asset)
             {
                 // NOTE(philip): In this image type, the pixel values are raw and uncompressed.
                 // TODO(philip): Replace memcpy.
-                memcpy(Asset->Data, Pointer, Size);
+                memcpy(Asset.Data, Pointer, Size);
             } break;
 
             case 10:
@@ -542,11 +709,9 @@ LoadTGA(char *Path, texture_asset *Asset)
                     ++Pointer;
 
                     u8 PacketType = (PacketHeader >> 7);
-                    Assert(PacketType == 0 || PacketType == 1);
 
                     // NOTE(philip): A pixel count of 0 is actually 1.
                     u8 PacketPixelCount = (PacketHeader & 0x7F) + 1;
-                    Assert(PacketPixelCount > 0 && PacketPixelCount <= 128);
 
                     switch (PacketType)
                     {
@@ -557,7 +722,7 @@ LoadTGA(char *Path, texture_asset *Asset)
                             u32 PacketSize = (PacketPixelCount * BytesPerPixel);
 
                             // TODO(philip): Replace memcpy.
-                            memcpy(Asset->Data + DataOffset, Pointer, PacketSize);
+                            memcpy(Asset.Data + DataOffset, Pointer, PacketSize);
 
                             PixelIndex += PacketPixelCount;
                             Pointer += PacketSize;
@@ -575,7 +740,7 @@ LoadTGA(char *Path, texture_asset *Asset)
                                 u32 DataOffset = (PixelIndex * BytesPerPixel);
 
                                 // TODO(philip): Replace memcpy.
-                                memcpy(Asset->Data + DataOffset, Pointer, BytesPerPixel);
+                                memcpy(Asset.Data + DataOffset, Pointer, BytesPerPixel);
 
                                 ++PixelIndex;
                             }
@@ -587,16 +752,14 @@ LoadTGA(char *Path, texture_asset *Asset)
             } break;
         }
 
-        Platform.FreeFileMemory(&FileData);
+        OS_FreeFileMemory(FileData);
     }
+
+    return Asset;
 }
 
 function void
-FreeTextureAsset(texture_asset *Asset)
+FreeTextureAsset(texture_asset Asset)
 {
-    Assert(Asset);
-
-    Platform.FreeMemory(Asset->Data);
-
-    *Asset = { };
+    OS_FreeMemory(Asset.Data);
 }

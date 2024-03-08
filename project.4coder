@@ -1,21 +1,20 @@
 version(2);
 project_name = "gfx";
 
-patterns = {
+patterns =
+{
     "*.cpp",
     "*.h",
     "*.bat",
     "*.4coder"
 };
 
-blacklist_patterns = {
-    ".*"
-};
-
-load_paths_base = {
+load_paths_base =
+{
     { ".", .relative = true, .recursive = true }
 };
 
-load_paths = {
+load_paths =
+{
     .win = load_paths_base
 };

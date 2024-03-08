@@ -1,7 +1,3 @@
-//
-// NOTE(philip): Character Functions
-//
-
 function b32
 IsWhitespace(char Character)
 {
@@ -10,9 +6,24 @@ IsWhitespace(char Character)
     return Result;
 }
 
-//
-// NOTE(philip): String Functions
-//
+function b32
+StringCompare(char *StringA, char *StringB)
+{
+    b32 Equal = true;
+
+    while (*StringA && *StringB && (*StringA == *StringB))
+    {
+        ++StringA;
+        ++StringB;
+    }
+
+    if (*StringA != *StringB)
+    {
+        Equal = false;
+    }
+
+    return Equal;
+}
 
 function char *
 SkipWhitespace(char *String)
@@ -58,10 +69,6 @@ SkipUntil(char *String, char Delimiter)
     return String;
 }
 
-//
-// NOTE(philip): File System
-//
-
 function char *
 ExtractDirectoryPath(char *FilePath)
 {
@@ -71,7 +78,7 @@ ExtractDirectoryPath(char *FilePath)
          *Character;
          ++Character)
     {
-        if (*Character == '/')
+        if (*Character == '\\')
         {
             End = Character;
         }
@@ -79,7 +86,7 @@ ExtractDirectoryPath(char *FilePath)
 
     u64 DirectoryPathLength = (End - FilePath);
 
-    char *Path = (char *)Platform.AllocateMemory((DirectoryPathLength + 1) * sizeof(char));
+    char *Path = (char *)OS_AllocateMemory((DirectoryPathLength + 1) * sizeof(char));
     memcpy(Path, FilePath, DirectoryPathLength * sizeof(char));
 
     return Path;
@@ -92,13 +99,13 @@ ConcatenatePaths(char *PathA, char *PathB)
     u64 PathBLength = strlen(PathB);
     u64 PathLength = (PathALength + PathBLength + 1);
 
-    char *Path = (char *)Platform.AllocateMemory((PathLength + 1) * sizeof(char));
+    char *Path = (char *)OS_AllocateMemory((PathLength + 1) * sizeof(char));
     char *Pointer = Path;
 
     memcpy(Pointer, PathA, PathALength * sizeof(char));
     Pointer += (PathALength * sizeof(char));
 
-    *Pointer = '/';
+    *Pointer = '\\';
     ++Pointer;
 
     memcpy(Pointer, PathB, PathBLength * sizeof(char));

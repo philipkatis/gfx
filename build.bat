@@ -1,14 +1,13 @@
 @echo off
 
-rem TODO(philip): Documentation.
-rem TODO(philip): Setup compiler flags.
+set CommonCompilerFlags=-nologo -Oi -Gm- -GR- -GS- -EHa- -Gs9999999 -Z7
+set CommonLinkerFlags=-incremental:no -opt:ref -nodefaultlib -stack:0x100000,0x100000 -subsystem:windows
 
-if not exist build (
-    mkdir build
-)
+set Libraries=libucrt.lib libvcruntime.lib libcmt.lib kernel32.lib user32.lib gdi32.lib opengl32.lib
 
-pushd build
+pushd run_tree
 
-call cl -Z7 ..\code\gfx_win32.cpp user32.lib gdi32.lib opengl32.lib
+call cl %CommonCompilerFlags% -Od ..\code\gfx_win32.cpp -Fegfx_debug.exe   -link %CommonLinkerFlags% %Libraries%
+call cl %CommonCompilerFlags% -O2 ..\code\gfx_win32.cpp -Fegfx_release.exe -link %CommonLinkerFlags% %Libraries%
 
 popd

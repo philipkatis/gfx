@@ -1,30 +1,11 @@
 #ifndef GFX_MATH_H
 #define GFX_MATH_H
 
-//
-// NOTE(philip): Constants
-//
-
-#define PI (3.1415926535897932f)
-
-//
-// NOTE(philip): 2-Component Integer Vector
-//
-
-union iv2
+struct iv2
 {
-    struct
-    {
-        s32 X;
-        s32 Y;
-    };
-
-    s32 Data[2];
+    s32 X;
+    s32 Y;
 };
-
-//
-// NOTE(philip): 2-Component Floating Point Vector
-//
 
 union v2
 {
@@ -37,10 +18,6 @@ union v2
     f32 Data[2];
 };
 
-//
-// NOTE(philip): 3-Component Floating Point Vector
-//
-
 union v3
 {
     struct
@@ -52,10 +29,6 @@ union v3
 
     f32 Data[3];
 };
-
-//
-// NOTE(philip): 4-Component Floating Point Vector
-//
 
 union v4
 {
@@ -70,34 +43,16 @@ union v4
     f32 Data[4];
 };
 
-//
-// NOTE(philip): Quaternion
-//
-
-union quat
+struct quat
 {
-    struct
-    {
-        f32 X;
-        f32 Y;
-        f32 Z;
-        f32 W;
-    };
-
-    f32 Data[4];
+    f32 X;
+    f32 Y;
+    f32 Z;
+    f32 W;
 };
 
-//
-// NOTE(philip): 4x4 Matrix
-//
-
-union m4
+struct m4
 {
-    struct
-    {
-        v4 Rows[4];
-    };
-
     f32 Data[16];
 };
 

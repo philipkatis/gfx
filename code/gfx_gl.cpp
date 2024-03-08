@@ -1,156 +1,210 @@
-// TODO(philip): Combine shader types in a single file.
-
 function GLuint
-GLLoadShaderModule(GLenum Type, char *Path)
+GL_CreateShaderModule(GLenum Type, buffer Source)
 {
-    GLuint Module = 0;
+    GLuint Module = glCreateShader(Type);
 
-    // TODO(philip): Move file loading out of here.
-    buffer FileData;
-    if (Platform.ReadEntireFile(Path, &FileData))
+    glShaderSource(Module, 1, (GLchar **)&Source.Data, (GLint *)&Source.Size);
+    glCompileShader(Module);
+
+    GLint Status;
+    glGetShaderiv(Module, GL_COMPILE_STATUS, &Status);
+
+    if (Status == GL_FALSE)
     {
-        Module = glCreateShader(Type);
+        GLchar InfoLog[4096];
+        GLsizei Len;
 
-        glShaderSource(Module, 1, (GLchar **)&FileData.Data, (GLint *)&FileData.Size);
-        glCompileShader(Module);
+        glGetShaderInfoLog(Module, 4096, &Len, InfoLog);
 
-        GLint Status;
-        glGetShaderiv(Module, GL_COMPILE_STATUS, &Status);
+        OutputDebugStringA(InfoLog);
 
-        if (Status == GL_FALSE)
-        {
-            // TODO(philip): Maybe remove this.
-            GLint InfoLogLength;
-            glGetShaderiv(Module, GL_INFO_LOG_LENGTH, &InfoLogLength);
-
-            Assert(InfoLogLength < 4096);
-
-            GLchar InfoLog[4096];
-            glGetShaderInfoLog(Module, 4096, &InfoLogLength, InfoLog);
-
-            // TODO(philip): Replace this with something like a message box?
-            // TODO(philip): Print correct name based on shader type.
-            OutputDebugStringA("Shader module compilation failed!\n");
-            OutputDebugStringA(InfoLog);
-            OutputDebugStringA("\n");
-
-            glDeleteShader(Module);
-            Module = 0;
-        }
-
-        Platform.FreeFileMemory(&FileData);
+        glDeleteShader(Module);
+        Module = 0;
     }
 
     return Module;
 }
 
-function void
-GLFreeShader(shader *Shader)
-{
-    Assert(Shader);
-
-    // TODO(philip): Only do this here in debug builds.
-    glDetachShader(Shader->Program, Shader->VertexModule);
-    glDetachShader(Shader->Program, Shader->PixelModule);
-
-    // TODO(philip): Only do this here in debug builds.
-    glDeleteShader(Shader->VertexModule);
-    glDeleteShader(Shader->PixelModule);
-
-    glDeleteProgram(Shader->Program);
-
-    *Shader = { };
-}
-
 function shader
-GLLoadShader(char *VertexModulePath, char *PixelModulePath)
+GL_LoadShader(char *VertexModuleFilePath, char *PixelModuleFilePath)
 {
     shader Shader = { };
+
+    GLuint VertexModule = 0;
+    GLuint PixelModule = 0;
+
+    buffer VertexModuleSource;
+    if (OS_ReadEntireFile(VertexModuleFilePath, &VertexModuleSource))
+    {
+        VertexModule = GL_CreateShaderModule(GL_VERTEX_SHADER, VertexModuleSource);
+        OS_FreeFileMemory(VertexModuleSource);
+    }
+
+    buffer PixelModuleSource;
+    if (OS_ReadEntireFile(PixelModuleFilePath, &PixelModuleSource))
+    {
+        PixelModule = GL_CreateShaderModule(GL_FRAGMENT_SHADER, PixelModuleSource);
+        OS_FreeFileMemory(PixelModuleSource);
+    }
+
     Shader.Program = glCreateProgram();
 
-    Shader.VertexModule = GLLoadShaderModule(GL_VERTEX_SHADER, VertexModulePath);
-    Shader.PixelModule = GLLoadShaderModule(GL_FRAGMENT_SHADER, PixelModulePath);
-
-    glAttachShader(Shader.Program, Shader.VertexModule);
-    glAttachShader(Shader.Program, Shader.PixelModule);
+    glAttachShader(Shader.Program, VertexModule);
+    glAttachShader(Shader.Program, PixelModule);
 
     GLint Status;
-
     glLinkProgram(Shader.Program);
-    glGetProgramiv(Shader.Program, GL_LINK_STATUS, &Status);
 
+    glGetProgramiv(Shader.Program, GL_LINK_STATUS, &Status);
     if (Status == GL_FALSE)
     {
-        // TODO(philip): Maybe remove this.
-        GLint InfoLogLength;
-        glGetProgramiv(Shader.Program, GL_INFO_LOG_LENGTH, &InfoLogLength);
-
-        Assert(InfoLogLength < 4096);
-
         GLchar InfoLog[4096];
-        glGetProgramInfoLog(Shader.Program, 4096, &InfoLogLength, InfoLog);
 
-        // TODO(philip): Replace this with something like a message box?
-        OutputDebugStringA("Shader program linking failed!\n");
+        GLsizei Len;
+        glGetProgramInfoLog(Shader.Program, 4096, &Len, InfoLog);
+
         OutputDebugStringA(InfoLog);
-        OutputDebugStringA("\n");
 
-        GLFreeShader(&Shader);
+        glDeleteProgram(Shader.Program);
+        Shader.Program = 0;
     }
 
     glValidateProgram(Shader.Program);
-    glGetProgramiv(Shader.Program, GL_VALIDATE_STATUS, &Status);
 
+    glGetProgramiv(Shader.Program, GL_VALIDATE_STATUS, &Status);
     if (Status == GL_FALSE)
     {
-        // TODO(philip): Maybe remove this.
-        GLint InfoLogLength;
-        glGetProgramiv(Shader.Program, GL_INFO_LOG_LENGTH, &InfoLogLength);
-
-        Assert(InfoLogLength < 4096);
-
         GLchar InfoLog[4096];
-        glGetProgramInfoLog(Shader.Program, 4096, &InfoLogLength, InfoLog);
 
-        // TODO(philip): Replace this with something like a message box?
-        OutputDebugStringA("Shader program validation failed!\n");
+        GLsizei Len;
+        glGetProgramInfoLog(Shader.Program, 4096, &Len, InfoLog);
+
         OutputDebugStringA(InfoLog);
-        OutputDebugStringA("\n");
 
-        GLFreeShader(&Shader);
+        glDeleteProgram(Shader.Program);
+        Shader.Program = 0;
     }
 
-    // TODO(philip): Detach the shaders and delete them here in release builds.
+    glDetachShader(Shader.Program, VertexModule);
+    glDetachShader(Shader.Program, PixelModule);
+
+    glDeleteShader(VertexModule);
+    glDeleteShader(PixelModule);
+
+    Shader.ViewProjectionUniform = glGetUniformLocation(Shader.Program, "ViewProjection");
+    Shader.CameraPositionUniform = glGetUniformLocation(Shader.Program, "CameraPosition");
+
+    Shader.AmbientLightColorUniform = glGetUniformLocation(Shader.Program, "AmbientLightColor");
+    Shader.AmbientLightIntensityUniform = glGetUniformLocation(Shader.Program, "AmbientLightIntensity");
+    Shader.LightPositionUniform = glGetUniformLocation(Shader.Program, "Light.Position");
+    Shader.LightColorUniform = glGetUniformLocation(Shader.Program, "Light.Color");
+    Shader.LightIntensityUniform = glGetUniformLocation(Shader.Program, "Light.Intensity");
+
+    Shader.TransformUniform = glGetUniformLocation(Shader.Program, "Transform");
+
+    Shader.MaterialUseDiffuseMapUniform = glGetUniformLocation(Shader.Program, "Material.UseDiffuseMap");
+    Shader.MaterialBaseColorUniform = glGetUniformLocation(Shader.Program, "Material.BaseColor");
+    Shader.MaterialIsLitUniform = glGetUniformLocation(Shader.Program, "Material.IsLit");
+    Shader.MaterialAmbientUniform = glGetUniformLocation(Shader.Program, "Material.Ambient");
+    Shader.MaterialDiffuseUniform = glGetUniformLocation(Shader.Program, "Material.Diffuse");
+    Shader.MaterialSpecularUniform = glGetUniformLocation(Shader.Program, "Material.Specular");
 
     return Shader;
 }
 
-function mesh
-GLUploadMesh(mesh_asset *Asset)
+function void
+GL_FreeShader(shader Shader)
 {
-    Assert(Asset);
+    glDeleteProgram(Shader.Program);
+}
 
+function mesh
+GL_UploadMesh(mesh_asset MeshAsset, u64 MaterialAssetCount, material_asset *MaterialAssets)
+{
     mesh Mesh = { };
 
-    // TODO(philip): Sort submeshes based on material index.
-    Mesh.SubmeshCount = Asset->SubmeshCount;
-    Mesh.Submeshes = (submesh *)Platform.AllocateMemory(Mesh.SubmeshCount * sizeof(submesh));
+    if (MeshAsset.SubmeshCount)
+    {
+        Mesh.SubmeshCount = MeshAsset.SubmeshCount;
+        Mesh.Submeshes = (submesh *)OS_AllocateMemory(Mesh.SubmeshCount * sizeof(submesh));
+        memcpy(Mesh.Submeshes, MeshAsset.Submeshes, Mesh.SubmeshCount * sizeof(submesh));
+    }
+    else
+    {
+        Mesh.SubmeshCount = 1;
+        Mesh.Submeshes = (submesh *)OS_AllocateMemory(Mesh.SubmeshCount * sizeof(submesh));
 
-    // TODO(philip): Replace with my own function.
-    memcpy(Mesh.Submeshes, Asset->Submeshes, Mesh.SubmeshCount * sizeof(submesh));
+        submesh *Submesh = Mesh.Submeshes;
+        Submesh->IndexCount = MeshAsset.IndexCount;
+        Submesh->IndexDataOffset = 0;
+        Submesh->MaterialIndex = -1;
+    }
+
+    Mesh.MaterialCount = MaterialAssetCount;
+    Mesh.Materials = (material *)OS_AllocateMemory(Mesh.MaterialCount * sizeof(material));
+
+    for (u64 Index = 0;
+         Index < Mesh.MaterialCount;
+         ++Index)
+    {
+        material_asset *MaterialAsset = MaterialAssets + Index;
+        material *Material = Mesh.Materials + Index;
+
+        Material->Properties = MaterialAsset->Properties;
+
+        if (MaterialAsset->DiffuseMap)
+        {
+            texture_asset TextureAsset = LoadTextureAsset(MaterialAsset->DiffuseMap);
+
+            glGenTextures(1, &Material->DiffuseMap);
+            glBindTexture(GL_TEXTURE_2D, Material->DiffuseMap);
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+            switch (TextureAsset.Format)
+            {
+                case TextureFormat_BGR:
+                {
+                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, TextureAsset.Width, TextureAsset.Height, 0, GL_BGR,
+                                 GL_UNSIGNED_BYTE, TextureAsset.Data);
+                } break;
+
+                case TextureFormat_BGRA:
+                {
+                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, TextureAsset.Width, TextureAsset.Height, 0, GL_BGRA,
+                                 GL_UNSIGNED_BYTE, TextureAsset.Data);
+                } break;
+            }
+
+            FreeTextureAsset(TextureAsset);
+
+            Material->UseDiffuseMap = true;
+        }
+        else
+        {
+            Material->UseDiffuseMap = false;
+        }
+
+        Material->BaseColor = MaterialAsset->BaseColor;
+
+        Material->Ambient = MaterialAsset->Ambient;
+        Material->Diffuse = MaterialAsset->Diffuse;
+        Material->Specular = MaterialAsset->Specular;
+    }
 
     glGenVertexArrays(1, &Mesh.VertexArray);
     glBindVertexArray(Mesh.VertexArray);
 
     glGenBuffers(1, &Mesh.VertexBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, Mesh.VertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, Asset->VertexData.Size, Asset->VertexData.Data, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, MeshAsset.VertexDataSize, MeshAsset.VertexData, GL_STATIC_DRAW);
 
-    u64 VertexSize = GetVertexSize(Asset->VertexAttributeFlags);
+    u64 VertexSize = GetVertexSize(MeshAsset.VertexAttributes);
     u64 AttributeIndex = 0;
     u64 AttributeOffset = 0;
 
-    if (Asset->VertexAttributeFlags & VertexAttributeFlags_Position)
+    if (MeshAsset.VertexAttributes & VertexAttribute_HasPositions)
     {
         glEnableVertexAttribArray(AttributeIndex);
         glVertexAttribPointer(AttributeIndex, 3, GL_FLOAT, GL_FALSE, VertexSize, (void *)AttributeOffset);
@@ -159,7 +213,7 @@ GLUploadMesh(mesh_asset *Asset)
         AttributeOffset += sizeof(v3);
     }
 
-    if (Asset->VertexAttributeFlags & VertexAttributeFlags_TextureCoordiante)
+    if (MeshAsset.VertexAttributes & VertexAttribute_HasTextureCoordinates)
     {
         glEnableVertexAttribArray(AttributeIndex);
         glVertexAttribPointer(AttributeIndex, 2, GL_FLOAT, GL_FALSE, VertexSize, (void *)AttributeOffset);
@@ -168,7 +222,7 @@ GLUploadMesh(mesh_asset *Asset)
         AttributeOffset += sizeof(v2);
     }
 
-    if (Asset->VertexAttributeFlags & VertexAttributeFlags_Normal)
+    if (MeshAsset.VertexAttributes & VertexAttribute_HasNormals)
     {
         glEnableVertexAttribArray(AttributeIndex);
         glVertexAttribPointer(AttributeIndex, 3, GL_FLOAT, GL_FALSE, VertexSize, (void *)AttributeOffset);
@@ -179,82 +233,89 @@ GLUploadMesh(mesh_asset *Asset)
 
     glGenBuffers(1, &Mesh.IndexBuffer);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Mesh.IndexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, Asset->IndexCount * sizeof(u32), Asset->Indices, GL_STATIC_DRAW);
-
-    // TODO(philip): Redundant?
-    glBindVertexArray(0);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, MeshAsset.IndexCount * sizeof(u32), MeshAsset.IndexData, GL_STATIC_DRAW);
 
     return Mesh;
 }
 
 function void
-GLFreeMesh(mesh *Mesh)
+GL_DrawMesh(shader Shader, mesh Mesh, m4 Transform)
 {
-    Assert(Mesh);
+    glUseProgram(Shader.Program);
+    glBindVertexArray(Mesh.VertexArray);
 
-    Platform.FreeMemory(Mesh->Submeshes);
-
-    glDeleteVertexArrays(1, &Mesh->VertexArray);
-    glDeleteBuffers(1, &Mesh->VertexBuffer);
-    glDeleteBuffers(1, &Mesh->IndexBuffer);
-
-    *Mesh = { };
-}
-
-function texture
-GLUploadTexture2D(texture_asset *Asset)
-{
-    texture Texture = { };
-    Assert(Asset);
-
-    glGenTextures(1, &Texture.Handle);
-    glBindTexture(GL_TEXTURE_2D, Texture.Handle);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    switch (Asset->Format)
-    {
-        case TextureFormat_BGR:
-        {
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, Asset->Width, Asset->Height, 0, GL_BGR,
-                         GL_UNSIGNED_BYTE, Asset->Data);
-        } break;
-
-        case TextureFormat_BGRA:
-        {
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Asset->Width, Asset->Height, 0, GL_BGRA,
-                         GL_UNSIGNED_BYTE, Asset->Data);
-        } break;
-    }
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    return Texture;
-}
-
-function void
-GLFreeTexture(texture *Texture)
-{
-    Assert(Texture);
-
-    glDeleteTextures(1, &Texture->Handle);
-
-    *Texture = { };
-}
-
-function void
-GLDrawMesh(mesh *Mesh)
-{
-    glBindVertexArray(Mesh->VertexArray);
+    glUniformMatrix4fv(Shader.TransformUniform, 1, GL_TRUE, (GLfloat *)&Transform);
 
     for (u64 Index = 0;
-         Index < Mesh->SubmeshCount;
+         Index < Mesh.SubmeshCount;
          ++Index)
     {
-        submesh *Submesh = Mesh->Submeshes + Index;
-        glDrawElements(GL_TRIANGLES, Submesh->IndexCount, GL_UNSIGNED_INT, (GLvoid *)(Submesh->IndexOffset * sizeof(u32)));
+        submesh *Submesh = Mesh.Submeshes + Index;
+        material *Material = 0;
+
+        if (Submesh->MaterialIndex != -1)
+        {
+            Material = Mesh.Materials + Submesh->MaterialIndex;
+        }
+        else
+        {
+            Material = Mesh.Materials;
+        }
+
+        if (Material)
+        {
+            f32 UseDiffuseMap = 1.0f;
+            if (!Material->UseDiffuseMap)
+            {
+                UseDiffuseMap = 0.0f;
+            }
+
+            glUniform1fv(Shader.MaterialUseDiffuseMapUniform, 1, &UseDiffuseMap);
+            glUniform4fv(Shader.MaterialBaseColorUniform, 1, (GLfloat *)&Material->BaseColor);
+
+            f32 IsLit = 1.0f;
+            if (Material->Properties & MaterialProperty_Unlit)
+            {
+                IsLit = 0.0f;
+            }
+
+            glUniform1fv(Shader.MaterialIsLitUniform, 1, &IsLit);
+            glUniform1fv(Shader.MaterialAmbientUniform, 1, &Material->Ambient);
+            glUniform1fv(Shader.MaterialDiffuseUniform, 1, &Material->Diffuse);
+            glUniform1fv(Shader.MaterialSpecularUniform, 1, &Material->Specular);
+
+            if (Material->Properties & MaterialProperty_Wireframe)
+            {
+                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            }
+            else
+            {
+                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            }
+
+            glBindTexture(GL_TEXTURE_2D, Material->DiffuseMap);
+        }
+
+        glDrawElements(GL_TRIANGLES, Submesh->IndexCount, GL_UNSIGNED_INT,
+                       (GLvoid *)(Submesh->IndexDataOffset * sizeof(u32)));
+    }
+}
+
+function void
+GL_FreeMesh(mesh Mesh)
+{
+    for (u64 Index = 0;
+         Index < Mesh.MaterialCount;
+         ++Index)
+    {
+        material *Material = Mesh.Materials + Index;
+        glDeleteTextures(1, &Material->DiffuseMap);
     }
 
-    glBindVertexArray(0);
+    glDeleteBuffers(1, &Mesh.IndexBuffer);
+    glDeleteBuffers(1, &Mesh.VertexBuffer);
+    glDeleteVertexArrays(1, &Mesh.VertexArray);
+
+    OS_FreeMemory(Mesh.Submeshes);
+    OS_FreeMemory(Mesh.Materials);
 }
